@@ -1,0 +1,121 @@
+
+    /* ================================
+       CUSTOMER DASHBOARD RESPONSIVE
+    ================================= */
+
+    .customer-dashboard {
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    .balance-card {
+        border: none;
+        border-radius: 16px;
+    }
+
+    .balance-amount {
+        font-size: 2.2rem;
+        font-weight: 700;
+        word-break: break-word;
+    }
+
+    .dashboard-card {
+        border: none;
+        border-radius: 14px;
+    }
+
+    .stat-card {
+        min-height: 120px;
+    }
+
+    .qr-image {
+        width: 220px;
+        max-width: 100%;
+        height: auto;
+    }
+
+    .info-value {
+        word-break: break-word;
+    }
+
+    .transaction-table {
+        min-width: 750px;
+    }
+
+    .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* ================================
+       MOBILE
+    ================================= */
+
+    @media (max-width: 767.98px) {
+
+        .customer-dashboard {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+        }
+
+        .balance-card .card-body {
+            padding: 20px;
+        }
+
+        .balance-amount {
+            font-size: 1.8rem;
+        }
+
+        .balance-account {
+            font-size: 0.9rem;
+        }
+
+        .qr-image {
+            width: 180px;
+        }
+
+        .stat-card {
+            min-height: auto;
+        }
+
+        .stat-card h3 {
+            font-size: 1.4rem;
+        }
+
+        .card-header {
+            padding: 12px 15px;
+        }
+
+        .card-body {
+            padding: 15px;
+        }
+
+        .info-item {
+            margin-bottom: 15px;
+        }
+
+        .btn-mobile {
+            width: 100%;
+        }
+
+        .table-wrapper {
+            margin-left: -5px;
+            margin-right: -5px;
+            width: calc(100% + 10px);
+        }
+
+        .transaction-table th,
+        .transaction-table td {
+            white-space: nowrap;
+            font-size: 0.85rem;
+        }
+
+        .transaction-table .btn {
+            white-space: nowrap;
+        }
+    }

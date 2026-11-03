@@ -8,14 +8,42 @@
 
 <hr>
 
-<form method="GET" class="mb-3">
-
-    <input type="text"
-           name="keyword"
-           value="{{ $keyword }}"
-           class="form-control"
-           placeholder="Search account...">
-
+<form method="GET" action="{{ route('accounting-journal.index') }}" class="row g-2 align-items-end mb-3">
+    <div class="col-md-4">
+        <label for="keyword" class="form-label">Cari akun</label>
+        <input
+            type="text"
+            id="keyword"
+            name="keyword"
+            value="{{ $keyword }}"
+            class="form-control"
+            placeholder="Search account..."
+        >
+    </div>
+    <div class="col-md-3">
+        <label for="date_from" class="form-label">Dari tanggal</label>
+        <input
+            type="date"
+            id="date_from"
+            name="date_from"
+            value="{{ $dateFrom }}"
+            class="form-control"
+        >
+    </div>
+    <div class="col-md-3">
+        <label for="date_to" class="form-label">Sampai tanggal</label>
+        <input
+            type="date"
+            id="date_to"
+            name="date_to"
+            value="{{ $dateTo }}"
+            class="form-control"
+        >
+    </div>
+    <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Filter</button>
+        <a href="{{ route('accounting-journal.index') }}" class="btn btn-outline-secondary">Reset</a>
+    </div>
 </form>
 
 <table class="table table-bordered table-striped">
@@ -50,7 +78,7 @@
 
         <td>{{ $loop->iteration }}</td>
 
-        <td>{{ $journal->date }}</td>
+        <td>{{ \Illuminate\Support\Carbon::parse($journal->date)->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') }} WIB</td>
 
         <td>#{{ $journal->transaction_id }}</td>
 

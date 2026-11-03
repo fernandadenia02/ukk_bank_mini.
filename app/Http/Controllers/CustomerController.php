@@ -3,11 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Models\User;
+use App\Services\CustomerAccountCreator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Validator;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Throwable;
 
 class CustomerController extends Controller
 {
@@ -18,20 +24,37 @@ class CustomerController extends Controller
     {
         $keyword = $request->keyword;
 
-        $customers = Customer::when($keyword, function ($query) use ($keyword) {
+        $customers = Customer::where('status', 'aktif')
+            ->when($keyword, function ($query) use ($keyword) {
 
-            $query->where('account_number', 'like', "%{$keyword}%")
-                ->orWhere('nis', 'like', "%{$keyword}%")
-                ->orWhere('name', 'like', "%{$keyword}%")
-                ->orWhere('class', 'like', "%{$keyword}%");
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('account_number', 'like', "%{$keyword}%")
+                        ->orWhere('nis', 'like', "%{$keyword}%")
+                        ->orWhere('name', 'like', "%{$keyword}%")
+                        ->orWhere('class', 'like', "%{$keyword}%");
+                });
 
-        })
-        ->orderBy('id', 'desc')
-        ->paginate(10)
-        ->withQueryString();
+            })
+            ->orderBy('id', 'desc')
+            ->paginate(10, ['*'], 'active_page')
+            ->withQueryString();
+
+        $inactiveCustomers = Customer::where('status', 'nonaktif')
+            ->when($keyword, function ($query) use ($keyword) {
+                $query->where(function ($query) use ($keyword) {
+                    $query->where('account_number', 'like', "%{$keyword}%")
+                        ->orWhere('nis', 'like', "%{$keyword}%")
+                        ->orWhere('name', 'like', "%{$keyword}%")
+                        ->orWhere('class', 'like', "%{$keyword}%");
+                });
+            })
+            ->orderBy('id', 'desc')
+            ->paginate(10, ['*'], 'inactive_page')
+            ->withQueryString();
 
         return view('customers.index', compact(
             'customers',
+            'inactiveCustomers',
             'keyword'
         ));
     }
@@ -60,93 +83,32 @@ class CustomerController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'account_number'   => 'required|unique:customers,account_number',
             'nis'              => 'required|unique:customers,nis',
             'name'             => 'required|max:100',
+            'email'            => 'required|email|max:255|unique:customers,email|unique:users,email',
             'class'            => 'required|max:20',
             'location'         => 'required',
             'telephone_number' => 'required|max:20',
+            'password'         => 'required|string|min:4',
             'pin'              => 'required|digits:6',
         ]);
+
+        if ($validator->fails()) {
+            return back()
+                ->withErrors($validator)
+                ->withInput($request->except(['password', 'pin']));
+        }
 
         DB::beginTransaction();
 
         try {
 
-            // ==========================================
-            // BUAT USER UNTUK LOGIN CUSTOMER
-            // ==========================================
-
-            $username = strtolower(trim($request->name));
-
-            // Cek username agar tidak duplikat
-            if (User::where('username', $username)->exists()) {
-
-                $username = $username . rand(10, 99);
-
-            }
-
-            $user = User::create([
-                'officer_name' => $request->name,
-                'username'     => $username,
-                'password'     => Hash::make($request->pin),
-                'role'         => 'customer',
-                'status'       => 'aktif',
-            ]);
-
-            // ==========================================
-            // BUAT DATA CUSTOMER
-            // ==========================================
-
-            $customer = Customer::create([
-
-                'user_id'          => $user->id,
-                'account_number'   => $request->account_number,
-                'nis'              => $request->nis,
-                'name'             => $request->name,
-                'class'            => $request->class,
-                'location'         => $request->location,
-                'telephone_number' => $request->telephone_number,
-                'pin'              => Hash::make($request->pin),
-                'balance'          => 10000,
-
-            ]);
-
-            // ==========================================
-            // BUAT FOLDER QR CODE
-            // ==========================================
-
-            if (!file_exists(public_path('qrcode'))) {
-
-                mkdir(
-                    public_path('qrcode'),
-                    0777,
-                    true
-                );
-
-            }
-
-            // ==========================================
-            // GENERATE QR CODE
-            // ==========================================
-
-            $fileName = $customer->account_number . '.svg';
-
-            file_put_contents(
-                public_path('qrcode/' . $fileName),
-                QrCode::size(300)->generate(
-                    $customer->account_number
-                )
+            [$customer] = $this->createCustomerAccount(
+                $validator->validated(),
+                (string) $request->account_number
             );
-
-            // ==========================================
-            // SIMPAN NAMA FILE QR CODE
-            // ==========================================
-
-            $customer->update([
-                'qrcode' => $fileName,
-            ]);
 
             DB::commit();
 
@@ -159,8 +121,7 @@ class CustomerController extends Controller
                 ->with(
                     'success',
                     'Customer berhasil dibuat. ' .
-                    'Username: ' . $user->username .
-                    ' | Password: PIN yang dimasukkan.'
+                    'Username: ' . $customer->username
                 );
 
         } catch (\Exception $e) {
@@ -168,7 +129,7 @@ class CustomerController extends Controller
             DB::rollBack();
 
             return back()
-                ->withInput()
+                ->withInput($request->except(['password', 'pin']))
                 ->with(
                     'error',
                     'Gagal membuat customer: ' .
@@ -177,13 +138,221 @@ class CustomerController extends Controller
         }
     }
 
+    public function downloadImportTemplate()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Customer');
+
+        $headers = [
+            'nis',
+            'name',
+            'email',
+            'class',
+            'location',
+            'telephone_number',
+            'password',
+            'pin',
+        ];
+
+        foreach ($headers as $column => $header) {
+            $columnLetter = Coordinate::stringFromColumnIndex($column + 1);
+            $sheet->setCellValue($columnLetter . '1', $header);
+            $sheet->getColumnDimension($columnLetter)->setWidth(24);
+            $sheet->getStyle($columnLetter . '2:' . $columnLetter . '5001')
+                ->getNumberFormat()
+                ->setFormatCode('@');
+        }
+
+        $guide = $spreadsheet->createSheet();
+        $guide->setTitle('Petunjuk');
+        $guide->fromArray([
+            ['Panduan Import Customer'],
+            ['Isi satu customer per baris pada sheet Customer, mulai dari baris 2.'],
+            ['Jangan ubah atau menghapus nama kolom pada baris pertama.'],
+            ['Nomor rekening dibuat otomatis oleh sistem.'],
+            ['Customer baru berstatus nonaktif dengan saldo Rp 0.'],
+            ['Password kosong otomatis diisi 1234.'],
+            ['PIN kosong otomatis diisi 123456. PIN wajib 6 angka jika diisi.'],
+            ['NIS, name, email, class, location, dan telephone_number wajib diisi.'],
+            ['Jika ada data salah atau duplikat, seluruh file dibatalkan dan tidak ada baris yang disimpan.'],
+            ['Simpan password dan PIN dengan aman, dan anjurkan customer untuk mengubahnya setelah login.'],
+        ], null, 'A1');
+        $guide->getColumnDimension('A')->setWidth(110);
+
+        $filename = 'template-import-customer.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            (new Xlsx($spreadsheet))->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function import(Request $request)
+    {
+        $validated = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx', 'max:10240'],
+        ]);
+
+        $expectedHeaders = [
+            'nis',
+            'name',
+            'email',
+            'class',
+            'location',
+            'telephone_number',
+            'password',
+            'pin',
+        ];
+        $rows = [];
+        $errors = [];
+
+        try {
+            $spreadsheet = IOFactory::load($validated['file']->getRealPath());
+            $sheet = $spreadsheet->getSheetByName('Customer') ?? $spreadsheet->getActiveSheet();
+            $highestRow = $sheet->getHighestDataRow();
+            $headers = [];
+
+            for ($column = 1; $column <= count($expectedHeaders); $column++) {
+                $headers[] = strtolower(trim((string) $sheet->getCell([$column, 1])->getValue()));
+            }
+
+            if ($headers !== $expectedHeaders) {
+                return back()->with('error', 'Format kolom Excel tidak sesuai. Unduh dan gunakan template import customer.');
+            }
+
+            if ($highestRow > 5001) {
+                return back()->with('error', 'Import maksimal 5.000 baris customer per file.');
+            }
+
+            for ($rowNumber = 2; $rowNumber <= $highestRow; $rowNumber++) {
+                $row = [];
+                $hasData = false;
+
+                foreach ($expectedHeaders as $index => $header) {
+                    $cell = $sheet->getCell([$index + 1, $rowNumber]);
+
+                    if ($cell->getDataType() === DataType::TYPE_FORMULA) {
+                        $errors[] = "Baris {$rowNumber}: formula tidak diperbolehkan.";
+                        continue 2;
+                    }
+
+                    $value = trim((string) $cell->getFormattedValue());
+                    $row[$header] = $value === '' ? null : $value;
+                    $hasData = $hasData || $row[$header] !== null;
+                }
+
+                if (!$hasData) {
+                    continue;
+                }
+
+                $row['password'] = $row['password'] ?? '1234';
+                $row['pin'] = $row['pin'] ?? '123456';
+                $row['nis'] = trim((string) ($row['nis'] ?? ''));
+                $row['email'] = strtolower(trim((string) ($row['email'] ?? '')));
+
+                $validator = Validator::make($row, [
+                    'nis' => ['required', 'string', 'max:30', 'unique:customers,nis'],
+                    'name' => ['required', 'string', 'max:100'],
+                    'email' => ['required', 'email', 'max:255', 'unique:customers,email', 'unique:users,email'],
+                    'class' => ['required', 'string', 'max:20'],
+                    'location' => ['required', 'string'],
+                    'telephone_number' => ['required', 'string', 'max:20'],
+                    'password' => ['required', 'string', 'min:4', 'max:255'],
+                    'pin' => ['required', 'digits:6'],
+                ]);
+
+                if ($validator->fails()) {
+                    foreach ($validator->errors()->all() as $error) {
+                        $errors[] = "Baris {$rowNumber}: {$error}";
+                    }
+
+                    continue;
+                }
+
+                foreach (['nis', 'email'] as $uniqueField) {
+                    if (isset($rows[$uniqueField][$row[$uniqueField]])) {
+                        $errors[] = "Baris {$rowNumber}: {$uniqueField} duplikat dengan baris {$rows[$uniqueField][$row[$uniqueField]]}.";
+                    } else {
+                        $rows[$uniqueField][$row[$uniqueField]] = $rowNumber;
+                    }
+                }
+
+                $rows['data'][] = $row;
+            }
+
+            $spreadsheet->disconnectWorksheets();
+        } catch (Throwable $e) {
+            Log::warning('File import customer tidak dapat dibaca.', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'File Excel tidak dapat dibaca. Pastikan file berformat .xlsx dan menggunakan template yang disediakan.');
+        }
+
+        $customerRows = $rows['data'] ?? [];
+
+        if ($errors !== []) {
+            return back()->with('import_errors', $errors);
+        }
+
+        if ($customerRows === []) {
+            return back()->with('error', 'File Excel belum berisi data customer.');
+        }
+
+        $generatedQrFiles = [];
+
+        try {
+            DB::transaction(function () use ($customerRows, &$generatedQrFiles) {
+                $lastAccountNumber = Customer::orderByDesc('id')
+                    ->lockForUpdate()
+                    ->value('account_number');
+                $nextAccountNumber = $lastAccountNumber
+                    ? (int) $lastAccountNumber + 1
+                    : 10000001;
+
+                foreach ($customerRows as $row) {
+                    [$customer, $qrPath] = $this->createCustomerAccount(
+                        $row,
+                        (string) $nextAccountNumber
+                    );
+                    $generatedQrFiles[] = $qrPath;
+                    $nextAccountNumber++;
+                }
+            });
+        } catch (Throwable $e) {
+            foreach ($generatedQrFiles as $qrPath) {
+                if (is_file($qrPath)) {
+                    unlink($qrPath);
+                }
+            }
+
+            Log::error('Import customer gagal disimpan.', [
+                'rows' => count($customerRows),
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Import gagal disimpan. Tidak ada customer yang ditambahkan. Periksa email/NIS duplikat dan coba lagi.');
+        }
+
+        return redirect()
+            ->route('customers.index')
+            ->with('success', count($customerRows) . ' customer berhasil diimport. Nomor rekening dibuat otomatis dan seluruh akun berstatus nonaktif dengan saldo Rp 0.');
+    }
+
+    private function createCustomerAccount(array $data, string $accountNumber): array
+    {
+        return app(CustomerAccountCreator::class)->create($data, $accountNumber);
+    }
+
     /**
      * Display the specified resource.
      */
     public function show(string $id)
     {
-        $customer = Customer::with('user')
-            ->findOrFail($id);
+        $customer = Customer::findOrFail($id);
 
         return view(
             'customers.show',
@@ -213,9 +382,11 @@ class CustomerController extends Controller
     ) {
         $customer = Customer::findOrFail($id);
 
-        $request->validate([
+        $validated = $request->validate([
             'nis' => 'required|unique:customers,nis,' . $customer->id,
             'name' => 'required|max:100',
+            'email' => 'required|email|max:255|unique:customers,email,' . $customer->id
+                . '|unique:users,email',
             'class' => 'required|max:20',
             'location' => 'required',
             'telephone_number' => 'required|max:20',
@@ -223,26 +394,14 @@ class CustomerController extends Controller
 
         $customer->update([
 
-            'nis' => $request->nis,
-            'name' => $request->name,
-            'class' => $request->class,
-            'location' => $request->location,
-            'telephone_number' => $request->telephone_number,
+            'nis' => $validated['nis'],
+            'name' => $validated['name'],
+            'email' => strtolower(trim($validated['email'])),
+            'class' => $validated['class'],
+            'location' => $validated['location'],
+            'telephone_number' => $validated['telephone_number'],
 
         ]);
-
-        // ==========================================
-        // UPDATE NAMA USER
-        // ==========================================
-
-        if ($customer->user_id) {
-
-            User::where('id', $customer->user_id)
-                ->update([
-                    'officer_name' => $request->name,
-                ]);
-
-        }
 
         return redirect()
             ->route('customers.index')
@@ -252,60 +411,26 @@ class CustomerController extends Controller
             );
     }
 
-    /**
-     * Remove the specified resource.
-     */
-    public function destroy(string $id)
+    public function updateStatus(Request $request, string $id)
     {
         $customer = Customer::findOrFail($id);
-
-        // Simpan user_id
-        $userId = $customer->user_id;
-
-        // ==========================================
-        // HAPUS QR CODE
-        // ==========================================
-
-        if (
-            $customer->qrcode &&
-            file_exists(
-                public_path(
-                    'qrcode/' . $customer->qrcode
-                )
-            )
-        ) {
-
-            unlink(
-                public_path(
-                    'qrcode/' . $customer->qrcode
-                )
-            );
-
+        $validated = $request->validate([
+            'status' => 'required|in:aktif,nonaktif',
+        ]);
+        if ($validated['status'] === 'aktif' && (float) $customer->balance < 10000) {
+            return redirect()
+                ->route('customers.index')
+                ->with('error', 'Customer hanya dapat diaktifkan jika saldo minimal Rp 10.000.');
         }
 
-        // ==========================================
-        // HAPUS CUSTOMER
-        // ==========================================
+        $customer->update(['status' => $validated['status']]);
 
-        $customer->delete();
-
-        // ==========================================
-        // HAPUS AKUN LOGIN CUSTOMER
-        // ==========================================
-
-        if ($userId) {
-
-            User::where('id', $userId)
-                ->where('role', 'customer')
-                ->delete();
-
+        if ($validated['status'] === 'nonaktif') {
+            $customer->tokens()->delete();
         }
 
         return redirect()
             ->route('customers.index')
-            ->with(
-                'success',
-                'Customer dan akun login berhasil dihapus.'
-            );
+            ->with('success', 'Status customer berhasil diperbarui.');
     }
 }

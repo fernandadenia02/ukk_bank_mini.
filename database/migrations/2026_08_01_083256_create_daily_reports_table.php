@@ -1,3 +1,4 @@
+```php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -6,22 +7,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        // Tabel daily_reports sudah ada di database.
+        if (Schema::hasTable('daily_reports')) {
+            return;
+        }
+
         Schema::create('daily_reports', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('daily_reports');
+        // Tidak menghapus tabel secara otomatis.
     }
 };

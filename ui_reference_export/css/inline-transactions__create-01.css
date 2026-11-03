@@ -1,0 +1,80 @@
+
+    .transaction-page {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .qr-card {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .qr-reader-wrapper {
+        width: 100%;
+        max-width: 500px;
+        margin: 20px auto;
+    }
+
+    #qrReader {
+        width: 100%;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    #qrReader video {
+        transform: none !important;
+    }
+
+    .customer-info-card {
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .balance-number {
+        font-size: 1.8rem;
+        font-weight: bold;
+    }
+
+    .form-label {
+        font-weight: 600;
+    }
+
+    @media (max-width: 576px) {
+
+        .transaction-page {
+            width: 100%;
+        }
+
+        .transaction-page h2 {
+            font-size: 1.5rem;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .balance-number {
+            font-size: 1.4rem;
+        }
+
+        #qrReader {
+            max-width: 100%;
+        }
+
+        .qr-reader-wrapper {
+            max-width: 100%;
+        }
+
+        .btn {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .btn:last-child {
+            margin-bottom: 0;
+        }
+
+        .customer-info-card .col-md-4 {
+            margin-bottom: 15px;
+        }
+    }

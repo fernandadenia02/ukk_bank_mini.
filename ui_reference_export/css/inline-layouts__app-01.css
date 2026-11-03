@@ -1,0 +1,398 @@
+
+
+        /* =====================================
+           GLOBAL
+        ===================================== */
+
+        body {
+            background: #f4f6f9;
+            overflow-x: hidden;
+            margin: 0;
+        }
+
+
+        /* =====================================
+           SIDEBAR
+        ===================================== */
+
+        .sidebar {
+
+            width: 250px;
+
+            height: 100vh;
+
+            position: fixed;
+
+            left: 0;
+            top: 0;
+
+            background: #0d6efd;
+
+            color: white;
+
+            overflow-y: auto;
+
+            z-index: 1050;
+
+            transition: transform .3s ease;
+
+        }
+
+
+        .sidebar h4 {
+
+            padding: 20px;
+
+            margin: 0;
+
+            text-align: center;
+
+            border-bottom:
+                1px solid
+                rgba(255,255,255,.2);
+
+        }
+
+
+        .sidebar a {
+
+            color: white;
+
+            text-decoration: none;
+
+            display: block;
+
+            padding: 14px 20px;
+
+            transition: .2s;
+
+        }
+
+
+        .sidebar a:hover {
+
+            background:
+                rgba(255,255,255,.15);
+
+        }
+
+
+        .sidebar a.active {
+
+            background: white;
+
+            color: #0d6efd;
+
+            font-weight: bold;
+
+        }
+
+
+        /* =====================================
+           SIDEBAR CLOSE BUTTON
+        ===================================== */
+
+        .sidebar-close {
+
+            display: none;
+
+            position: absolute;
+
+            top: 15px;
+
+            right: 15px;
+
+            border: none;
+
+            background: transparent;
+
+            color: white;
+
+            font-size: 24px;
+
+        }
+
+
+        /* =====================================
+           CONTENT
+        ===================================== */
+
+        .content {
+
+            margin-left: 250px;
+
+            min-height: 100vh;
+
+            transition:
+                margin-left .3s ease;
+
+        }
+
+
+        /* =====================================
+           TOPBAR
+        ===================================== */
+
+        .topbar {
+
+            background: white;
+
+            min-height: 70px;
+
+            box-shadow:
+                0 2px 8px
+                rgba(0,0,0,.08);
+
+            display: flex;
+
+            align-items: center;
+
+        }
+
+
+        .main-content {
+
+            padding: 25px;
+
+        }
+
+
+        /* =====================================
+           MENU BUTTON
+        ===================================== */
+
+        .menu-button {
+
+            display: none;
+
+            border: none;
+
+            background: transparent;
+
+            font-size: 25px;
+
+            margin-right: 15px;
+
+            color: #212529;
+
+        }
+
+
+        /* =====================================
+           OVERLAY
+        ===================================== */
+
+        .sidebar-overlay {
+
+            display: none;
+
+            position: fixed;
+
+            inset: 0;
+
+            background:
+                rgba(0,0,0,.45);
+
+            z-index: 1040;
+
+        }
+
+
+        /* =====================================
+           CARD
+        ===================================== */
+
+        .card {
+
+            border: none;
+
+            border-radius: 12px;
+
+        }
+
+
+        /* =====================================
+           TABLE
+        ===================================== */
+
+        .table-responsive {
+
+            overflow-x: auto;
+
+        }
+
+
+        /* =====================================
+           MOBILE
+        ===================================== */
+
+        @media (max-width: 767.98px) {
+
+
+            /* SIDEBAR TERTUTUP */
+
+            .sidebar {
+
+                transform:
+                    translateX(-100%);
+
+            }
+
+
+            /* SIDEBAR TERBUKA */
+
+            .sidebar.show {
+
+                transform:
+                    translateX(0);
+
+            }
+
+
+            /* CONTENT FULL WIDTH */
+
+            .content {
+
+                margin-left: 0;
+
+                width: 100%;
+
+            }
+
+
+            /* MENU BUTTON */
+
+            .menu-button {
+
+                display: inline-block;
+
+            }
+
+
+            /* CLOSE BUTTON */
+
+            .sidebar-close {
+
+                display: block;
+
+            }
+
+
+            /* OVERLAY */
+
+            .sidebar-overlay.show {
+
+                display: block;
+
+            }
+
+
+            /* TOPBAR */
+
+            .topbar {
+
+                padding-left: 15px !important;
+
+                padding-right: 15px !important;
+
+                min-height: 65px;
+
+            }
+
+
+            .topbar-title {
+
+                font-size: 1rem;
+
+                white-space: nowrap;
+
+                overflow: hidden;
+
+                text-overflow: ellipsis;
+
+            }
+
+
+            /* USER AREA */
+
+            .user-area {
+
+                gap: 8px;
+
+            }
+
+
+            .user-info {
+
+                display: none;
+
+            }
+
+
+            /* LOGOUT */
+
+            .logout-button {
+
+                padding: 8px 10px;
+
+            }
+
+
+            .logout-button span {
+
+                display: none;
+
+            }
+
+
+            /* CONTENT */
+
+            .main-content {
+
+                padding: 15px;
+
+            }
+
+
+            /* H2 */
+
+            .main-content h2 {
+
+                font-size: 1.5rem;
+
+            }
+
+        }
+
+
+        /* =====================================
+           VERY SMALL PHONE
+        ===================================== */
+
+        @media (max-width: 400px) {
+
+            .main-content {
+
+                padding: 12px;
+
+            }
+
+
+            .topbar-title {
+
+                max-width: 130px;
+
+            }
+
+
+            .menu-button {
+
+                font-size: 22px;
+
+                margin-right: 8px;
+
+            }
+
+        }
+
+    

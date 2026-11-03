@@ -7,12 +7,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
 
     <h2>
-        <i class="bi bi-pencil-square"></i>
+        
         Edit User
     </h2>
 
     <a href="{{ route('users.index') }}" class="btn btn-secondary">
-        <i class="bi bi-arrow-left"></i>
+        
         Back
     </a>
 
@@ -23,7 +23,7 @@
 <div class="alert alert-danger">
 
     <h6>
-        <i class="bi bi-exclamation-triangle-fill"></i>
+        
         Please fix the following errors:
     </h6>
 
@@ -43,11 +43,11 @@
 
 <div class="card shadow">
 
-    <div class="card-header bg-warning">
+    <div class="card-header bg-danger text-white">
 
         <h5 class="mb-0 text-dark">
 
-            <i class="bi bi-person-gear"></i>
+            
 
             Edit User Information
 
@@ -95,6 +95,26 @@
                         required>
 
                 </div>
+
+            </div>
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    name="email"
+                    class="form-control"
+                    value="{{ old('email', $user->email) }}"
+                    placeholder="Enter email for password recovery"
+                    maxlength="255">
+
+                <small class="text-muted">
+                    Wajib diisi untuk akun admin dan teller.
+                </small>
 
             </div>
 
@@ -146,11 +166,6 @@
                             Supervisor
                         </option>
 
-                        <option value="nasabah"
-                            {{ old('role', $user->role) == 'nasabah' ? 'selected' : '' }}>
-                            Nasabah
-                        </option>
-
                     </select>
 
                 </div>
@@ -186,7 +201,7 @@
 
             <button class="btn btn-warning">
 
-                <i class="bi bi-check-circle"></i>
+                
 
                 Update User
 
@@ -195,7 +210,7 @@
             <a href="{{ route('users.index') }}"
                class="btn btn-secondary">
 
-                <i class="bi bi-x-circle"></i>
+                
 
                 Cancel
 

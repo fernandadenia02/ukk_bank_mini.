@@ -7,12 +7,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
 
     <h2>
-        <i class="bi bi-people-fill"></i>
+        
         User Management
     </h2>
 
     <a href="{{ route('users.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-circle"></i>
+        
         Add User
     </a>
 
@@ -73,7 +73,7 @@
 
                 <button class="btn btn-primary w-100">
 
-                    <i class="bi bi-search"></i>
+                    
 
                     Search
 
@@ -91,27 +91,29 @@
 
                     <th width="60">No</th>
 
+                    <th>ID</th>
+
                     <th>
-                        <i class="bi bi-person-fill"></i>
+                        
                         Officer
                     </th>
 
                     <th>
-                        <i class="bi bi-person-badge"></i>
+                        
                         Username
                     </th>
 
                     <th>
-                        <i class="bi bi-shield-lock"></i>
+                        
                         Role
                     </th>
 
                     <th>
-                        <i class="bi bi-check-circle"></i>
+                        
                         Status
                     </th>
 
-                    <th width="190">
+                    <th width="220">
                         Action
                     </th>
 
@@ -139,6 +141,8 @@
 
                     </td>
 
+                    <td>{{ $user->id }}</td>
+
                     <td>{{ $user->officer_name }}</td>
 
                     <td>{{ $user->username }}</td>
@@ -163,7 +167,7 @@
 
                         @elseif($user->role=='supervisor')
 
-                            <span class="badge bg-warning text-dark">
+                            <span class="badge bg-danger text-white">
 
                                 Supervisor
 
@@ -173,7 +177,7 @@
 
                             <span class="badge bg-success">
 
-                                Customer
+                                Pegawai
 
                             </span>
 
@@ -208,44 +212,36 @@
                         <a href="{{ route('users.edit',$user->id) }}"
                            class="btn btn-warning btn-sm">
 
-                            <i class="bi bi-pencil-square"></i>
+                            
 
                             Edit
 
                         </a>
 
-                        @if($user->id != auth()->id())
-
                         <form
-                            action="{{ route('users.destroy',$user->id) }}"
+                            action="{{ route('users.status',$user->id) }}"
                             method="POST"
                             class="d-inline"
-                            onsubmit="return confirm('Delete this user?')">
+                            onsubmit="return confirm('Ubah status user ini?')">
 
                             @csrf
-                            @method('DELETE')
+                            @method('PATCH')
 
-                            <button class="btn btn-danger btn-sm">
+                            <input
+                                type="hidden"
+                                name="status"
+                                value="{{ $user->status === 'aktif' ? 'nonaktif' : 'aktif' }}">
 
-                                <i class="bi bi-trash"></i>
+                            <button
+                                class="btn btn-{{ $user->status === 'aktif' ? 'secondary' : 'success' }} btn-sm"
+                                {{ $user->id == auth()->id() ? 'disabled' : '' }}>
 
-                                Delete
+                                
+                                {{ $user->status === 'aktif' ? 'Deactivate' : 'Activate' }}
 
                             </button>
 
                         </form>
-
-                        @else
-
-                        <button
-                            class="btn btn-secondary btn-sm"
-                            disabled>
-
-                            Current User
-
-                        </button>
-
-                        @endif
 
                     </td>
 
@@ -255,7 +251,7 @@
 
                 <tr>
 
-                    <td colspan="6" class="text-center">
+                    <td colspan="7" class="text-center">
 
                         No user data available.
 

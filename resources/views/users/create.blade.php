@@ -7,12 +7,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
 
     <h2>
-        <i class="bi bi-person-plus-fill"></i>
+        
         Create New User
     </h2>
 
     <a href="{{ route('users.index') }}" class="btn btn-secondary">
-        <i class="bi bi-arrow-left"></i>
+        
         Back
     </a>
 
@@ -23,7 +23,7 @@
 <div class="alert alert-danger">
 
     <h6>
-        <i class="bi bi-exclamation-triangle-fill"></i>
+        
         Please fix the following errors:
     </h6>
 
@@ -47,7 +47,7 @@
 
         <h5 class="mb-0">
 
-            <i class="bi bi-person-vcard"></i>
+            
 
             User Information
 
@@ -97,6 +97,26 @@
 
             </div>
 
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    name="email"
+                    class="form-control"
+                    value="{{ old('email') }}"
+                    placeholder="Enter email for password recovery"
+                    maxlength="255">
+
+                <small class="text-muted">
+                    Wajib diisi untuk akun admin dan teller.
+                </small>
+
+            </div>
+
             <div class="row">
 
                 <div class="col-md-6 mb-3">
@@ -130,34 +150,8 @@
                         required>
 
                      <option value="admin">Admin</option>
-                    <option value="teller">Teller</option>
-                    <option value="supervisor">Supervisor</option>
-                    <option value="nasabah">Nasabah</option>
-
-                    </select>
-
-                </div>
-
-                <div class="col-md-3 mb-3">
-
-                    <label class="form-label">
-                        Status
-                    </label>
-
-                    <select
-                        name="status"
-                        class="form-select"
-                        required>
-
-                        <option value="aktif"
-                            {{ old('status')=='aktif'?'selected':'' }}>
-                            Active
-                        </option>
-
-                        <option value="nonaktif"
-                            {{ old('status')=='nonaktif'?'selected':'' }}>
-                            Inactive
-                        </option>
+                     <option value="teller">Teller</option>
+                     <option value="supervisor">Supervisor</option>
 
                     </select>
 
@@ -165,11 +159,15 @@
 
             </div>
 
+            <div class="alert alert-info">
+                User baru dibuat dalam status nonaktif. Admin dapat mengaktifkannya dari daftar user.
+            </div>
+
             <hr>
 
             <button class="btn btn-success">
 
-                <i class="bi bi-check-circle"></i>
+                
 
                 Save User
 
@@ -178,7 +176,7 @@
             <a href="{{ route('users.index') }}"
                class="btn btn-secondary">
 
-                <i class="bi bi-x-circle"></i>
+                
 
                 Cancel
 

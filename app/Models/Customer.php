@@ -2,28 +2,41 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Laravel\Sanctum\HasApiTokens;
 
-class Customer extends Model
+class Customer extends Authenticatable
 {
-    use HasFactory;
+    use HasApiTokens, HasFactory;
 
     protected $table = 'customers';
 
     const UPDATED_AT = null;
 
     protected $fillable = [
-        'user_id',
         'account_number',
         'nis',
         'name',
+        'email',
+        'username',
+        'password',
+        'status',
         'class',
         'location',
         'telephone_number',
         'pin',
         'balance',
         'qrcode',
+    ];
+
+    protected $hidden = [
+        'pin',
+        'password',
+    ];
+
+    protected $casts = [
+        'password' => 'hashed',
     ];
 
     public function transactions()

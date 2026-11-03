@@ -1,3 +1,4 @@
+```php
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -6,22 +7,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        // Tabel accounting_journals sudah ada.
+        if (Schema::hasTable('accounting_journals')) {
+            return;
+        }
+
         Schema::create('accounting_journals', function (Blueprint $table) {
             $table->id();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('accounting_journals');
+        // Tidak menghapus tabel secara otomatis.
     }
 };

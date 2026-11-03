@@ -14,29 +14,25 @@ class DailyReport extends Model
     public $timestamps = false;
 
     protected $fillable = [
-
         'teller_id',
-
         'supervisor_id',
-
         'date',
-
         'beginning_balance',
-
         'total_deposit',
-
         'total_withdrawals',
-
         'ending_balance',
-
         'physical_money',
-
         'difference',
-
         'status',
-
         'approved_at',
+        'closed_at',
+        'rejection_reason',
+    ];
 
+    protected $casts = [
+        'date' => 'date',
+        'approved_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     public function teller()
@@ -47,5 +43,10 @@ class DailyReport extends Model
     public function supervisor()
     {
         return $this->belongsTo(User::class, 'supervisor_id');
+    }
+
+    public function cashAdvanceRequests()
+    {
+        return $this->hasMany(CashAdvanceRequest::class, 'daily_report_id');
     }
 }

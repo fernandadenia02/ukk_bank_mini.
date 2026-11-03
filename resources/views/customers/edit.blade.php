@@ -67,6 +67,26 @@ required>
 
 <div class="mb-3">
 
+<label for="email">Email</label>
+
+<input
+type="email"
+id="email"
+name="email"
+class="form-control"
+value="{{ old('email', $customer->email) }}"
+maxlength="255"
+autocomplete="email"
+required>
+
+<small class="text-muted">
+Email ini digunakan untuk menerima kode OTP saat lupa password.
+</small>
+
+</div>
+
+<div class="mb-3">
+
 <label>Class</label>
 
 <input

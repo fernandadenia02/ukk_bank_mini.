@@ -6,124 +6,466 @@ use App\Models\User;
 use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\DailyReport;
+use App\Models\CashAdvanceRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class DashboardController extends Controller
 {
     /**
-     * Dashboard Admin
+     * ==========================================
+     * DASHBOARD ADMIN
+     * ==========================================
      */
-    public function admin()
+    public function admin(Request $request)
     {
+        // ==========================
+        // STATISTIK USER
+        // ==========================
+
         $totalUsers = User::count();
 
         $totalCustomers = Customer::count();
 
+        $totalTellers = User::where('role', 'teller')->count();
+
+        $totalSupervisors = User::where('role', 'supervisor')->count();
+
+        $balanceClasses = Customer::query()
+            ->whereNotNull('class')
+            ->where('class', '<>', '')
+            ->distinct()
+            ->orderBy('class')
+            ->pluck('class');
+
+        $selectedBalanceClass = $request->query('class');
+
+        if ($selectedBalanceClass !== null) {
+            $request->validate([
+                'class' => ['required', 'string', 'max:20', Rule::in($balanceClasses->all())],
+            ]);
+        }
+
+        $customerBalanceQuery = Customer::query();
+
+        if ($selectedBalanceClass !== null) {
+            $customerBalanceQuery->where('class', $selectedBalanceClass);
+        }
+
+        $totalCustomerBalance = $customerBalanceQuery->sum('balance');
+
+
+        // ==========================
+        // STATISTIK TRANSAKSI
+        // ==========================
+
         $totalTransactions = Transaction::count();
 
-        $todayTransactions = Transaction::whereDate('date', today())->count();
+        $todayTransactions = Transaction::whereDate(
+            'date',
+            today()
+        )->count();
 
-        $totalDeposit = Transaction::where('transaction_type', 'setoran')
-            ->whereDate('date', today())
-            ->sum('amount');
 
-        $totalWithdrawal = Transaction::where('transaction_type', 'penarikan')
-            ->whereDate('date', today())
-            ->sum('amount');
+        // ==========================
+        // SETORAN HARI INI
+        // ==========================
 
-        $pendingReports = DailyReport::where('status', 'pending')->count();
+        $totalDeposit = Transaction::where(
+            'transaction_type',
+            'setoran'
+        )
+        ->whereDate('date', today())
+        ->sum('amount');
 
-        $approvedReports = DailyReport::where('status', 'approved')->count();
 
-        return view('admin.dashboard', compact(
-            'totalUsers',
-            'totalCustomers',
-            'totalTransactions',
+        // ==========================
+        // PENARIKAN HARI INI
+        // ==========================
+
+        $totalWithdrawal = Transaction::where(
+            'transaction_type',
+            'penarikan'
+        )
+        ->whereDate('date', today())
+        ->sum('amount');
+
+
+        // ==========================
+        // DAILY REPORT
+        // ==========================
+
+        $pendingReports = DailyReport::where(
+            'status',
+            'pending'
+        )->count();
+
+        $approvedReports = DailyReport::where(
+            'status',
+            'approved'
+        )->count();
+
+        $rejectedReports = DailyReport::where(
+            'status',
+            'rejected'
+        )->count();
+
+        $pendingCashAdvanceRequests = CashAdvanceRequest::with(['teller', 'report'])
+            ->where('status', 'pending')
+            ->orderBy('requested_at')
+            ->get();
+
+
+        // ==========================
+        // TRANSAKSI TERBARU
+        // ==========================
+
+        $latestTransactions = Transaction::with([
+            'customer',
+            'teller'
+        ])
+        ->orderBy('date', 'desc')
+        ->take(5)
+        ->get();
+
+
+        // ==========================
+        // CUSTOMER TERBARU
+        // ==========================
+
+        $latestCustomers = Customer::orderBy(
+            'id',
+            'desc'
+        )
+        ->take(5)
+        ->get();
+
+
+        return view(
+            'admin.dashboard',
+            compact(
+                'totalUsers',
+                'totalCustomers',
+                'balanceClasses',
+                'selectedBalanceClass',
+                'totalCustomerBalance',
+                'totalTellers',
+                'totalSupervisors',
+                'totalTransactions',
+                'todayTransactions',
+                'totalDeposit',
+                'totalWithdrawal',
+                'pendingReports',
+                'approvedReports',
+                'rejectedReports',
+                'pendingCashAdvanceRequests',
+                'latestTransactions',
+                'latestCustomers'
+            )
+        );
+    }
+
+/**
+ * ==========================================
+ * DASHBOARD TELLER
+ * ==========================================
+ */
+public function teller(Request $request)
+{
+    // ==========================
+    // TRANSAKSI HARI INI
+    // ==========================
+
+    $todayTransactions = Transaction::where(
+        'teller_id',
+        Auth::id()
+    )
+    ->whereDate('date', today())
+    ->count();
+
+
+    // ==========================
+    // TOTAL SETORAN HARI INI
+    // ==========================
+
+    $totalDeposit = Transaction::where(
+        'teller_id',
+        Auth::id()
+    )
+    ->where(
+        'transaction_type',
+        'setoran'
+    )
+    ->whereDate('date', today())
+    ->sum('amount');
+
+
+    // ==========================
+    // TOTAL PENARIKAN HARI INI
+    // ==========================
+
+    $totalWithdrawal = Transaction::where(
+        'teller_id',
+        Auth::id()
+    )
+    ->where(
+        'transaction_type',
+        'penarikan'
+    )
+    ->whereDate('date', today())
+    ->sum('amount');
+
+
+    // ==========================
+    // DAILY REPORT
+    // ==========================
+
+    $dailyReport = DailyReport::firstOrCreate(
+        [
+            'teller_id' => Auth::id(),
+            'date' => today()->toDateString(),
+        ],
+        [
+            'beginning_balance' => 0,
+            'total_deposit' => 0,
+            'total_withdrawals' => 0,
+            'ending_balance' => 0,
+            'physical_money' => 0,
+            'difference' => 0,
+            'status' => 'pending',
+        ]
+    );
+
+    $rejectedReports = DailyReport::where('teller_id', Auth::id())
+        ->where('status', 'rejected')
+        ->orderByDesc('date')
+        ->get();
+
+    $cashAdvanceRequests = $dailyReport->cashAdvanceRequests()
+        ->with('reviewer')
+        ->orderBy('requested_at')
+        ->get();
+
+
+    // ==========================
+    // SEARCH NASABAH
+    // ==========================
+
+    $search = $request->input('search');
+
+    $customers = collect();
+    $inactiveCustomers = collect();
+
+    if (!empty($search)) {
+
+        $customers = Customer::where(function ($query) use ($search) {
+
+            $query->where(
+                'name',
+                'like',
+                '%' . $search . '%'
+            )
+            ->orWhere(
+                'account_number',
+                'like',
+                '%' . $search . '%'
+            );
+
+        })
+        ->orderBy('name')
+        ->get();
+    }
+
+    $inactiveCustomers = Customer::where('status', 'nonaktif')
+        ->orderBy('name')
+        ->paginate(10, ['*'], 'inactive_page')
+        ->withQueryString();
+
+
+    // ==========================
+    // DASHBOARD TELLER
+    // ==========================
+
+    return view(
+        'teller.dashboard',
+        compact(
             'todayTransactions',
             'totalDeposit',
             'totalWithdrawal',
-            'pendingReports',
-            'approvedReports'
-        ));
-    }
-
+            'dailyReport',
+            'cashAdvanceRequests',
+            'rejectedReports',
+            'customers',
+            'inactiveCustomers',
+            'search'
+        )
+    );
+}
     /**
-     * Dashboard Teller
-     */
-    public function teller()
-    {
-        $todayTransactions = Transaction::where('teller_id', Auth::id())
-            ->whereDate('date', today())
-            ->count();
-
-        $totalDeposit = Transaction::where('teller_id', Auth::id())
-            ->where('transaction_type', 'setoran')
-            ->whereDate('date', today())
-            ->sum('amount');
-
-        $totalWithdrawal = Transaction::where('teller_id', Auth::id())
-            ->where('transaction_type', 'penarikan')
-            ->whereDate('date', today())
-            ->sum('amount');
-
-        $dailyReport = DailyReport::where('teller_id', Auth::id())
-            ->whereDate('date', today())
-            ->first();
-
-        return view('teller.dashboard', compact(
-            'todayTransactions',
-            'totalDeposit',
-            'totalWithdrawal',
-            'dailyReport'
-        ));
-    }
-
-    /**
-     * Dashboard Supervisor
+     * ==========================================
+     * DASHBOARD SUPERVISOR
+     * ==========================================
      */
     public function supervisor()
-{
-    $totalReports = DailyReport::count();
+    {
+        // ==========================
+        // TOTAL REPORT
+        // ==========================
 
-    $todayReports = DailyReport::whereDate('date', today())->count();
+        $totalReports = DailyReport::count();
 
-    $pendingReports = DailyReport::where('status', 'pending')->count();
 
-    $approvedReports = DailyReport::where('status', 'approved')->count();
+        // ==========================
+        // REPORT HARI INI
+        // ==========================
 
-    $rejectedReports = DailyReport::where('status', 'rejected')->count();
+        $todayReports = DailyReport::whereDate(
+            'date',
+            today()
+        )->count();
 
-    return view('supervisor.dashboard', compact(
-        'totalReports',
-        'todayReports',
-        'pendingReports',
-        'approvedReports',
-        'rejectedReports'
-    ));
-}
+
+        // ==========================
+        // REPORT PENDING
+        // ==========================
+
+        $pendingReports = DailyReport::where(
+            'status',
+            'pending'
+        )->count();
+
+
+        // ==========================
+        // REPORT APPROVED
+        // ==========================
+
+        $approvedReports = DailyReport::where(
+            'status',
+            'approved'
+        )->count();
+
+
+        // ==========================
+        // REPORT REJECTED
+        // ==========================
+
+        $rejectedReports = DailyReport::where(
+            'status',
+            'rejected'
+        )->count();
+
+
+        return view(
+            'supervisor.dashboard',
+            compact(
+                'totalReports',
+                'todayReports',
+                'pendingReports',
+                'approvedReports',
+                'rejectedReports'
+            )
+        );
+    }
+
 
     /**
-     * Dashboard Customer
+     * ==========================================
+     * DASHBOARD CUSTOMER
+     * ==========================================
      */
     public function customer()
     {
-        $customer = Customer::where('user_id', Auth::id())->first();
+        // ==========================
+        // DATA CUSTOMER LOGIN
+        // ==========================
+
+        $customer = Auth::guard('customer')->user();
+
 
         if (!$customer) {
 
             return redirect()
                 ->route('login')
-                ->with('error', 'Customer data not found.');
+                ->with(
+                    'error',
+                    'Customer data not found.'
+                );
 
         }
 
-        $transactions = Transaction::where('customer_id', $customer->id)
-            ->orderBy('date', 'desc')
-            ->get();
 
-        return view('customer.dashboard', compact(
-            'customer',
-            'transactions'
-        ));
+        // ==========================
+        // SEMUA TRANSAKSI CUSTOMER
+        // ==========================
+
+        $transactions = Transaction::where(
+            'customer_id',
+            $customer->id
+        )
+        ->orderBy(
+            'date',
+            'desc'
+        )
+        ->get();
+
+
+        // ==========================
+        // TOTAL TRANSAKSI
+        // ==========================
+
+        $totalTransactions =
+            $transactions->count();
+
+
+        // ==========================
+        // TOTAL SETORAN
+        // ==========================
+
+        $totalDeposit =
+            $transactions
+                ->where(
+                    'transaction_type',
+                    'setoran'
+                )
+                ->sum('amount');
+
+
+        // ==========================
+        // TOTAL PENARIKAN
+        // ==========================
+
+        $totalWithdrawal =
+            $transactions
+                ->where(
+                    'transaction_type',
+                    'penarikan'
+                )
+                ->sum('amount');
+
+
+        // ==========================
+        // 5 TRANSAKSI TERBARU
+        // ==========================
+
+        $latestTransactions =
+            $transactions->take(5);
+
+
+        // ==========================
+        // TAMPILKAN DASHBOARD
+        // ==========================
+
+        return view(
+            'customer.dashboard',
+            compact(
+                'customer',
+                'transactions',
+                'latestTransactions',
+                'totalTransactions',
+                'totalDeposit',
+                'totalWithdrawal'
+            )
+        );
     }
 }

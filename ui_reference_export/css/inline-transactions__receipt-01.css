@@ -1,0 +1,122 @@
+
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .receipt {
+            width: 700px;
+            max-width: 100%;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border: 1px solid #ddd;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            margin: 0;
+        }
+
+        .header p {
+            margin: 5px 0;
+        }
+
+        .title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 8px 5px;
+            vertical-align: top;
+        }
+
+        td:first-child {
+            width: 180px;
+            font-weight: bold;
+        }
+
+        .line {
+            border-top: 1px solid #000;
+            margin: 20px 0;
+        }
+
+        .amount {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .success {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 25px;
+            font-size: 18px;
+        }
+
+        .buttons {
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 18px;
+            margin: 5px;
+            text-decoration: none;
+            border-radius: 5px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-print {
+            background: #198754;
+        }
+
+        .btn-back {
+            background: #6c757d;
+        }
+
+        .btn-continue {
+            background: #0d6efd;
+        }
+
+        @media print {
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .receipt {
+                width: 100%;
+                border: none;
+                padding: 10px;
+            }
+
+            .buttons {
+                display: none;
+            }
+
+        }
+
+    

@@ -1,0 +1,719 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\CustomerPinResetOtp;
+use App\Models\Customer;
+use App\Models\CashAdvanceRequest;
+use App\Models\Transaction;
+use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
+
+class TellerTransactionPinTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('officer_name');
+            $table->string('username')->unique();
+            $table->string('password');
+            $table->string('role');
+            $table->string('status');
+        });
+
+        Schema::create('customers', function (Blueprint $table): void {
+            $table->id();
+            $table->string('username')->unique();
+            $table->string('password');
+            $table->string('status')->default('nonaktif');
+            $table->string('account_number');
+            $table->string('nis');
+            $table->string('name');
+            $table->string('class')->nullable();
+            $table->string('email')->nullable();
+            $table->string('pin');
+            $table->decimal('balance', 12, 2);
+            $table->timestamps();
+        });
+
+        Schema::create('transactions', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('teller_id');
+            $table->string('transaction_type');
+            $table->decimal('amount', 12, 2);
+            $table->decimal('beginning_balance', 12, 2);
+            $table->decimal('ending_balance', 12, 2);
+            $table->dateTime('date');
+        });
+
+        Schema::create('daily_reports', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('teller_id');
+            $table->unsignedBigInteger('supervisor_id')->nullable();
+            $table->date('date');
+            $table->decimal('beginning_balance', 12, 2)->default(0);
+            $table->decimal('total_deposit', 12, 2)->default(0);
+            $table->decimal('total_withdrawals', 12, 2)->default(0);
+            $table->decimal('ending_balance', 12, 2)->default(0);
+            $table->decimal('physical_money', 12, 2)->default(0);
+            $table->decimal('difference', 12, 2)->default(0);
+            $table->string('status');
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('closed_at')->nullable();
+        });
+
+        Schema::create('cash_advance_requests', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('daily_report_id');
+            $table->unsignedBigInteger('teller_id');
+            $table->decimal('amount', 12, 2);
+            $table->string('status')->default('pending');
+            $table->text('rejection_reason')->nullable();
+            $table->dateTime('requested_at');
+            $table->unsignedBigInteger('reviewed_by')->nullable();
+            $table->dateTime('reviewed_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('accounting_journal', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('transaction_id');
+            $table->string('account');
+            $table->decimal('debit', 12, 2)->default(0);
+            $table->decimal('credit', 12, 2)->default(0);
+            $table->dateTime('date');
+        });
+
+        Schema::create('customer_pin_reset_otps', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->string('otp_hash');
+            $table->dateTime('expires_at');
+            $table->unsignedTinyInteger('attempts')->default(0);
+            $table->dateTime('used_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function test_teller_must_enter_the_correct_six_digit_customer_pin_to_withdraw(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 20000]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'customer_pin' => '111111',
+                'transaction_type' => 'penarikan',
+                'amount' => 1000,
+            ])
+            ->assertSessionHasErrors('customer_pin')
+            ->assertSessionMissing('_old_input.customer_pin');
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(20000, $customer->fresh()->balance);
+    }
+
+    public function test_customer_pin_is_not_required_for_a_deposit(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'transaction_type' => 'setoran',
+                'amount' => 1000,
+            ])
+            ->assertRedirect(route(
+                'transactions.receipt',
+                Transaction::query()->max('id')
+            ));
+
+        $this->assertDatabaseHas('transactions', [
+            'customer_id' => $customer->id,
+            'teller_id' => $teller->id,
+            'amount' => 1000,
+        ]);
+        $this->assertEquals(11000, $customer->fresh()->balance);
+        $this->assertArrayNotHasKey('pin', $customer->fresh()->toArray());
+
+        $this->get(route('transactions.receipt', Transaction::query()->max('id')))
+            ->assertOk()
+            ->assertSee('Kembali ke Beranda')
+            ->assertSee(route('teller.dashboard'))
+            ->assertSee('Lanjut Transaksi')
+            ->assertSee(route('transactions.create', [
+                'customer_id' => $customer->id,
+            ]));
+    }
+
+    public function test_teller_opening_cash_is_recorded_and_prevents_cash_shortfalls(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 20000]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'customer_pin' => '012345',
+                'transaction_type' => 'penarikan',
+                'amount' => 3000,
+            ])
+            ->assertSessionHas(
+                'error',
+                'Kas teller tidak mencukupi. Kas tersedia: Rp 0. Tambahkan modal awal atau tunggu setoran.'
+            );
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(20000, $customer->fresh()->balance);
+
+        $this->post(route('teller.daily-reports.opening-cash'), [
+            'amount' => '5.000',
+        ])->assertSessionHas('success');
+
+        $cashRequest = CashAdvanceRequest::firstOrFail();
+        $this->assertSame('pending', $cashRequest->status);
+        $this->approveCashRequest($cashRequest, $teller);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'customer_pin' => '012345',
+            'transaction_type' => 'penarikan',
+            'amount' => 6000,
+        ])->assertSessionHas(
+            'error',
+            'Kas teller tidak mencukupi. Kas tersedia: Rp 5.000. Tambahkan modal awal atau tunggu setoran.'
+        );
+        $this->assertDatabaseCount('transactions', 0);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'customer_pin' => '012345',
+            'transaction_type' => 'penarikan',
+            'amount' => 3000,
+        ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
+
+        $report = \App\Models\DailyReport::where('teller_id', $teller->id)->firstOrFail();
+        $this->assertEquals(5000, $report->beginning_balance);
+        $this->assertEquals(3000, $report->total_withdrawals);
+        $this->assertEquals(2000, $report->ending_balance);
+
+        $this->post(route('teller.daily-reports.opening-cash'), [
+            'amount' => '8.000',
+        ])->assertSessionHas(
+            'error',
+            'Permintaan modal tambahan hanya dapat diajukan saat kas tersedia sudah habis.'
+        );
+        $this->assertEquals(5000, $report->fresh()->beginning_balance);
+    }
+
+    public function test_admin_daily_report_shows_teller_opening_cash_for_review(): void
+    {
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('teller.daily-reports.opening-cash'), [
+                'amount' => '5.000',
+            ])
+            ->assertSessionHas('success');
+
+        $report = \App\Models\DailyReport::where('teller_id', $teller->id)->firstOrFail();
+        $cashRequest = CashAdvanceRequest::firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSee('Permintaan Modal Kas Teller')
+            ->assertSee('Rp 5.000');
+
+        $this->post(route('cash-advance-requests.approve', $cashRequest->id))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('cash_advance_requests', [
+            'id' => $cashRequest->id,
+            'status' => 'approved',
+            'reviewed_by' => $admin->id,
+        ]);
+        $this->assertEquals(5000, $report->fresh()->beginning_balance);
+
+        $this->get(route('daily-reports.show', $report->id))
+            ->assertOk()
+            ->assertSee('Modal Awal Kas')
+            ->assertSee('Rp 5.000');
+    }
+
+    public function test_teller_can_request_and_admin_can_approve_more_cash_after_cash_runs_out(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 20000]);
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($teller)->post(route('teller.daily-reports.opening-cash'), [
+            'amount' => '3.000',
+        ])->assertSessionHas('success');
+        $this->approveCashRequest(CashAdvanceRequest::firstOrFail(), $teller, $admin);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'customer_pin' => '012345',
+            'transaction_type' => 'penarikan',
+            'amount' => 3000,
+        ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
+
+        $report = \App\Models\DailyReport::where('teller_id', $teller->id)->firstOrFail();
+        $this->assertEquals(0, $report->fresh()->ending_balance);
+
+        $this->post(route('teller.daily-reports.opening-cash'), [
+            'amount' => '4.000',
+        ])->assertSessionHas('success');
+
+        $secondRequest = CashAdvanceRequest::orderByDesc('id')->firstOrFail();
+        $this->assertSame('pending', $secondRequest->status);
+        $this->actingAs($admin)
+            ->post(route('cash-advance-requests.approve', $secondRequest->id))
+            ->assertSessionHas('success');
+
+        $this->assertEquals(7000, $report->fresh()->beginning_balance);
+        $this->assertEquals(4000, $report->fresh()->ending_balance);
+        $this->assertDatabaseHas('cash_advance_requests', [
+            'id' => $secondRequest->id,
+            'status' => 'approved',
+        ]);
+    }
+
+    public function test_admin_can_reject_cash_request_and_teller_can_submit_a_new_request(): void
+    {
+        [$teller] = $this->createTellerAndCustomer();
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('teller.daily-reports.opening-cash'), [
+                'amount' => '5.000',
+            ])
+            ->assertSessionHas('success');
+
+        $request = CashAdvanceRequest::firstOrFail();
+        $this->actingAs($admin)
+            ->post(route('cash-advance-requests.reject', $request->id), [
+                'rejection_reason' => 'Jumlah perlu dikonfirmasi.',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('cash_advance_requests', [
+            'id' => $request->id,
+            'status' => 'rejected',
+            'reviewed_by' => $admin->id,
+            'rejection_reason' => 'Jumlah perlu dikonfirmasi.',
+        ]);
+        $this->assertEquals(0, $request->report->fresh()->beginning_balance);
+
+        $this->actingAs($teller)
+            ->post(route('teller.daily-reports.opening-cash'), [
+                'amount' => '7.000',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseCount('cash_advance_requests', 2);
+        $this->assertSame(
+            'pending',
+            CashAdvanceRequest::orderByDesc('id')->firstOrFail()->status
+        );
+    }
+
+    public function test_correct_customer_pin_allows_a_withdrawal(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 20000]);
+
+        $this->actingAs($teller)
+            ->post(route('teller.daily-reports.opening-cash'), [
+                'amount' => '5.000',
+            ])
+            ->assertSessionHas('success');
+        $this->approveCashRequest(CashAdvanceRequest::firstOrFail(), $teller);
+
+        $this->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'customer_pin' => '012345',
+                'transaction_type' => 'penarikan',
+                'amount' => 1000,
+            ])
+            ->assertRedirect(route(
+                'transactions.receipt',
+                Transaction::query()->max('id')
+            ));
+
+        $this->assertDatabaseHas('transactions', [
+            'customer_id' => $customer->id,
+            'teller_id' => $teller->id,
+            'transaction_type' => 'penarikan',
+            'amount' => 1000,
+        ]);
+        $this->assertEquals(19000, $customer->fresh()->balance);
+    }
+
+    public function test_inactive_customer_requires_minimum_activation_deposit_and_is_activated_afterwards(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update([
+            'status' => 'nonaktif',
+            'balance' => 0,
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'transaction_type' => 'setoran',
+                'amount' => 9999,
+            ])
+            ->assertSessionHas('error', 'Setoran pertama untuk aktivasi minimal Rp 10.000.');
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(0, $customer->fresh()->balance);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'transaction_type' => 'setoran',
+            'amount' => 10000,
+        ])->assertRedirect(route(
+            'transactions.receipt',
+            Transaction::query()->max('id')
+        ));
+
+        $this->assertEquals(10000, $customer->fresh()->balance);
+        $this->assertSame('aktif', $customer->fresh()->status);
+    }
+
+    public function test_customer_pin_is_stored_as_a_hash(): void
+    {
+        [, $customer] = $this->createTellerAndCustomer();
+
+        $this->assertNotSame('012345', $customer->pin);
+        $this->assertTrue(Hash::check('012345', $customer->pin));
+    }
+
+    public function test_teller_transaction_form_requires_pin_only_for_withdrawals(): void
+    {
+        [$teller] = $this->createTellerAndCustomer();
+
+        $this->actingAs($teller)
+            ->get(route('transactions.create'))
+            ->assertOk()
+            ->assertSee('name="customer_pin"', false)
+            ->assertSee('pattern="[0-9]{6}"', false)
+            ->assertSee('maxlength="6"', false)
+            ->assertSee('customerPin.required = withdrawalSelected', false)
+            ->assertSee('customerPin.disabled = !withdrawalSelected', false)
+            ->assertSee(route('transactions.pin-reset.send'), false)
+            ->assertSee(route('transactions.pin-reset.update'), false)
+            ->assertSee('name="pin_confirmation"', false);
+    }
+
+    public function test_amount_input_formats_thousands_and_submits_numeric_value(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+
+        $this->actingAs($teller)
+            ->get(route('transactions.create'))
+            ->assertOk()
+            ->assertSee('type="text"', false)
+            ->assertSee('inputmode="numeric"', false)
+            ->assertSee("Number(amount.value.replace(/\\D/g, ''))", false)
+            ->assertSee("amount.value.replace(/\\D/g, '')", false);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'transaction_type' => 'setoran',
+            'amount' => '10.000',
+        ])->assertRedirect(route(
+            'transactions.receipt',
+            Transaction::query()->max('id')
+        ));
+
+        $this->assertDatabaseHas('transactions', [
+            'customer_id' => $customer->id,
+            'amount' => 10000,
+        ]);
+        $this->assertEquals(20000, $customer->fresh()->balance);
+    }
+
+    public function test_teller_dashboard_has_a_qr_button_near_search_that_opens_the_scanner(): void
+    {
+        [$teller] = $this->createTellerAndCustomer();
+
+        $this->actingAs($teller)
+            ->get(route('teller.dashboard'))
+            ->assertOk()
+            ->assertSee(route('transactions.create', ['scan' => 1]) . '#qr-scanner');
+
+        $this->get(route('transactions.create', ['scan' => 1]))
+            ->assertOk()
+            ->assertSee("new URLSearchParams(window.location.search).get('scan') === '1'", false)
+            ->assertSee('startScanner.click()', false);
+    }
+
+    public function test_teller_dashboard_lists_inactive_customers_with_activation_transaction_link(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update([
+            'status' => 'nonaktif',
+            'balance' => 0,
+        ]);
+
+        $this->actingAs($teller)
+            ->get(route('teller.dashboard'))
+            ->assertOk()
+            ->assertSee('Customer Belum Aktif')
+            ->assertSee('Aktivasi via Setoran')
+            ->assertSee(route('transactions.create', [
+                'customer_id' => $customer->id,
+                'activation' => 1,
+            ]));
+
+        $this->get(route('transactions.create', [
+            'customer_id' => $customer->id,
+            'activation' => 1,
+        ]))
+            ->assertOk()
+            ->assertSee('data-active="0"', false)
+            ->assertSee('setoran pertama minimal Rp 10.000');
+    }
+
+    public function test_teller_can_send_customer_pin_reset_otp_to_registered_email(): void
+    {
+        Mail::fake();
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update([
+            'status' => 'aktif',
+            'email' => 'customer@example.test',
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.pin-reset.send'), [
+                'customer_id' => $customer->id,
+            ])
+            ->assertRedirect(route('transactions.create', [
+                'customer_id' => $customer->id,
+                'pin_reset' => 1,
+            ]) . '#pin-reset')
+            ->assertSessionHas('pin_reset_status', function ($message) {
+                return str_contains($message, 'c***@example.test') &&
+                    str_contains($message, 'Spam/Junk');
+            });
+
+        $otp = CustomerPinResetOtp::where('customer_id', $customer->id)->firstOrFail();
+        $this->assertNotSame('123456', $otp->otp_hash);
+        $this->assertTrue($otp->expires_at->isFuture());
+    }
+
+    public function test_teller_cannot_send_customer_pin_reset_otp_without_registered_email(): void
+    {
+        Mail::fake();
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['status' => 'aktif']);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.pin-reset.send'), [
+                'customer_id' => $customer->id,
+            ])
+            ->assertRedirect(route('transactions.create', [
+                'customer_id' => $customer->id,
+                'pin_reset' => 1,
+            ]) . '#pin-reset')
+            ->assertSessionHas('pin_reset_error');
+
+        $this->assertDatabaseCount('customer_pin_reset_otps', 0);
+    }
+
+    public function test_customer_can_reset_pin_with_a_valid_email_otp(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['status' => 'aktif']);
+
+        $otp = CustomerPinResetOtp::create([
+            'customer_id' => $customer->id,
+            'otp_hash' => Hash::make('123456'),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 0,
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.pin-reset.update'), [
+                'customer_id' => $customer->id,
+                'otp' => '123456',
+                'pin' => '987654',
+                'pin_confirmation' => '987654',
+            ])
+            ->assertRedirect(route('transactions.create', [
+                'customer_id' => $customer->id,
+                'pin_reset' => 1,
+            ]) . '#pin-reset')
+            ->assertSessionHas('pin_reset_status');
+
+        $this->assertTrue(Hash::check('987654', $customer->fresh()->pin));
+        $this->assertNotSame('987654', $customer->fresh()->pin);
+        $this->assertNotNull($otp->fresh()->used_at);
+    }
+
+    public function test_withdrawal_pin_must_be_six_digits_and_is_not_kept_in_old_input(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 20000]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'customer_pin' => '12345',
+                'transaction_type' => 'penarikan',
+                'amount' => 1000,
+            ])
+            ->assertSessionHasErrors('customer_pin')
+            ->assertSessionMissing('_old_input.customer_pin');
+
+        $this->assertDatabaseCount('transactions', 0);
+    }
+
+    public function test_teller_can_close_cash_with_a_difference_and_cannot_transact_afterward(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'transaction_type' => 'setoran',
+                'amount' => 1000,
+            ])
+            ->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
+
+        $this->post(route('teller.daily-reports.close'), [
+            'physical_money' => '900',
+        ])
+            ->assertRedirect(route('teller.dashboard'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('daily_reports', [
+            'teller_id' => $teller->id,
+            'total_deposit' => 1000,
+            'ending_balance' => 1000,
+            'physical_money' => 900,
+            'difference' => -100,
+        ]);
+        $this->assertNotNull(
+            \App\Models\DailyReport::where('teller_id', $teller->id)->firstOrFail()->closed_at
+        );
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'transaction_type' => 'setoran',
+            'amount' => 1000,
+        ])
+            ->assertSessionHas('error', 'Kas harian sudah ditutup. Transaksi tidak dapat diproses hari ini.');
+
+        $this->get(route('transactions.create'))
+            ->assertRedirect(route('teller.dashboard'))
+            ->assertSessionHas('error', 'Kas harian sudah ditutup. Transaksi baru tidak dapat dibuat hari ini.');
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
+    public function test_teller_can_close_cash_with_no_transactions(): void
+    {
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('teller.daily-reports.close'), [
+                'physical_money' => '0',
+            ])
+            ->assertRedirect(route('teller.dashboard'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('daily_reports', [
+            'teller_id' => $teller->id,
+            'total_deposit' => 0,
+            'physical_money' => 0,
+            'difference' => 0,
+        ]);
+    }
+
+    private function createTellerAndCustomer(): array
+    {
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+
+        $customer = Customer::create([
+            'account_number' => '10000001',
+            'nis' => 'NIS-1',
+            'name' => 'Test Customer',
+            'username' => 'testcustomer',
+            'password' => Hash::make('password'),
+            'status' => 'aktif',
+            'pin' => Hash::make('012345'),
+            'balance' => 10000,
+        ]);
+
+        return [$teller, $customer];
+    }
+
+    private function approveCashRequest(
+        CashAdvanceRequest $cashRequest,
+        User $teller,
+        ?User $admin = null,
+    ): void {
+        $admin ??= User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('cash-advance-requests.approve', $cashRequest->id))
+            ->assertSessionHas('success');
+
+        $this->actingAs($teller);
+    }
+}

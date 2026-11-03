@@ -22,24 +22,24 @@
 </a>
 
 <table class="table table-bordered table-hover">
+<thead class="table-dark">
 
-    <thead class="table-dark">
+    <tr>
 
-        <tr>
+        <th>No</th>
+        <th>Date</th>
+        <th>Customer</th>
+        <th>Account Number</th>
+        <th>Type</th>
+        <th>Amount</th>
+        <th>Beginning Balance</th>
+        <th>Ending Balance</th>
+        <th>Teller</th>
+        <th>Action</th>
 
-            <th>No</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Account Number</th>
-            <th>Type</th>
-            <th>Amount</th>
-            <th>Beginning Balance</th>
-            <th>Ending Balance</th>
-            <th>Teller</th>
+    </tr>
 
-        </tr>
-
-    </thead>
+</thead>
 
     <tbody>
 
@@ -97,13 +97,25 @@
 
             </td>
 
+            <td>
+
+    <a
+        href="{{ route('transactions.receipt', $transaction->id) }}"
+        target="_blank"
+        class="btn btn-primary btn-sm"
+    >
+         Cetak
+    </a>
+
+</td>
+
         </tr>
 
     @empty
 
         <tr>
 
-            <td colspan="9" class="text-center">
+            <td colspan="10" class="text-center">
 
                 No transaction data.
 

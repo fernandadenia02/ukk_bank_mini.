@@ -15,12 +15,13 @@ class UserController extends Controller
     {
         $keyword = $request->keyword;
 
-        $users = User::when($keyword, function ($query) use ($keyword) {
-
-            $query->where('officer_name', 'like', "%{$keyword}%")
-                  ->orWhere('username', 'like', "%{$keyword}%")
-                  ->orWhere('role', 'like', "%{$keyword}%");
-
+        $users = User::whereIn('role', ['admin', 'teller', 'supervisor'])
+        ->when($keyword, function ($query) use ($keyword) {
+            $query->where(function ($query) use ($keyword) {
+                $query->where('officer_name', 'like', "%{$keyword}%")
+                    ->orWhere('username', 'like', "%{$keyword}%")
+                    ->orWhere('role', 'like', "%{$keyword}%");
+            });
         })
         ->orderBy('id', 'desc')
         ->get();
@@ -46,19 +47,20 @@ class UserController extends Controller
     {
         $request->validate([
             'officer_name' => 'required|max:100',
-            'username'     => 'required|unique:users,username|max:50',
+            'username'     => 'required|unique:users,username|unique:customers,username|max:50',
+            'email'        => 'nullable|required_if:role,admin|required_if:role,teller|email|max:255|unique:users,email',
             'password'     => 'required|min:4',
-            'role'         => 'required',
-            'status'       => 'required'
+            'role'         => 'required|in:admin,teller,supervisor',
         ]);
 
         User::create([
 
             'officer_name' => $request->officer_name,
             'username'     => $request->username,
+            'email'        => $request->email ? strtolower(trim($request->email)) : null,
             'password'     => Hash::make($request->password),
             'role'         => $request->role,
-            'status'       => $request->status
+            'status'       => 'nonaktif'
 
         ]);
 
@@ -86,15 +88,18 @@ class UserController extends Controller
 
         $request->validate([
             'officer_name' => 'required|max:100',
-            'username'     => 'required|unique:users,username,' . $id,
-            'role'         => 'required',
-            'status'       => 'required'
+            'username'     => 'required|unique:users,username,' . $id
+                . '|unique:customers,username',
+            'email'        => 'nullable|required_if:role,admin|required_if:role,teller|email|max:255|unique:users,email,' . $id,
+            'role'         => 'required|in:admin,teller,supervisor',
+            'status'       => 'required|in:aktif,nonaktif'
         ]);
 
         $data = [
 
             'officer_name' => $request->officer_name,
             'username'     => $request->username,
+            'email'        => $request->email ? strtolower(trim($request->email)) : null,
             'role'         => $request->role,
             'status'       => $request->status
 
@@ -113,25 +118,30 @@ class UserController extends Controller
             ->with('success', 'User updated successfully.');
     }
 
-    /**
-     * Delete user.
-     */
-    public function destroy(string $id)
+    public function updateStatus(Request $request, string $id)
     {
         $user = User::findOrFail($id);
 
-        if ($user->id == session('id')) {
+        $validated = $request->validate([
+            'status' => 'required|in:aktif,nonaktif',
+        ]);
 
+        if ($user->id == $request->user()->id && $validated['status'] === 'nonaktif') {
             return redirect()
                 ->route('users.index')
-                ->with('error', 'You cannot delete your own account.');
-
+                ->with('error', 'Anda tidak dapat menonaktifkan akun sendiri.');
         }
 
-        $user->delete();
+        $user->update([
+            'status' => $validated['status'],
+        ]);
+
+        if ($validated['status'] === 'nonaktif') {
+            $user->tokens()->delete();
+        }
 
         return redirect()
             ->route('users.index')
-            ->with('success', 'User deleted successfully.');
+            ->with('success', 'Status user berhasil diperbarui.');
     }
 }

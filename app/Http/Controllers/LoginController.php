@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Customer;
+use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
 {
@@ -31,27 +33,43 @@ class LoginController extends Controller
             'status'   => 'aktif',
         ];
 
-        if (!Auth::attempt($credentials)) {
+        Auth::guard('web')->logout();
+        Auth::guard('customer')->logout();
 
-            return back()
-                ->with('error', 'Username atau password salah.')
-                ->withInput();
+        $guard = 'web';
+        if (!Auth::guard('web')->attempt($credentials)) {
+            $customer = Customer::where('username', $request->username)->first();
+
+            if (
+                !$customer ||
+                $customer->status !== 'aktif' ||
+                !$customer->password ||
+                !Hash::check($request->password, $customer->password)
+            ) {
+                return back()
+                    ->with('error', 'Username atau password salah.')
+                    ->withInput();
+            }
+
+            Auth::guard('customer')->login($customer);
+            $guard = 'customer';
         }
 
         $request->session()->regenerate();
 
-        $user = Auth::user();
+        $user = Auth::guard($guard)->user();
 
         // Simpan data login ke session
         session([
             'login'        => true,
-            'id'           => $user->id,
-            'officer_name' => $user->officer_name,
-            'role'         => $user->role,
+            'id'           => $user->getAuthIdentifier(),
+            'officer_name' => $user instanceof Customer ? $user->name : $user->officer_name,
+            'role'         => $user instanceof Customer ? 'customer' : $user->role,
         ]);
 
         // Redirect berdasarkan role
-        switch ($user->role) {
+        $role = $user instanceof Customer ? 'customer' : $user->role;
+        switch ($role) {
 
             case 'admin':
 
@@ -80,7 +98,8 @@ class LoginController extends Controller
 
             default:
 
-                Auth::logout();
+                Auth::guard('web')->logout();
+                Auth::guard('customer')->logout();
 
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -96,7 +115,8 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
-        Auth::logout();
+        Auth::guard('web')->logout();
+        Auth::guard('customer')->logout();
 
         $request->session()->invalidate();
 
