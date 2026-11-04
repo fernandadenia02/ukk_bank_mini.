@@ -34,11 +34,11 @@ jobs:
       - name: Siapkan Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Build aset frontend
         run: |
-          npm ci --no-audit --no-fund
+          npm ci --include=optional --no-audit --no-fund
           npm run build
 
       - name: Jalankan pengujian
