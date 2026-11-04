@@ -88,7 +88,7 @@ class TellerTransactionIsolationTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $customer = Customer::create([
+        $customer = Customer::forceCreate([
             'user_id' => $teller->id,
             'account_number' => '10000001',
             'nis' => 'NIS-1',

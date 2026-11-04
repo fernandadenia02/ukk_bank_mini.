@@ -1,5 +1,4 @@
-
-name: Deploy Bank Mini via FTP
+name: Build Bank Mini deployment ZIPs
 
 on:
   push:
@@ -11,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,21 +27,22 @@ jobs:
       - name: Validasi Composer
         run: composer validate --no-check-publish
 
-      - name: Siapkan dependency aplikasi
+      - name: Siapkan dependency untuk test
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Siapkan Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
+
+      - name: Install dependency frontend
+        run: npm ci
 
       - name: Build aset frontend
-        run: |
-          npm ci --include=optional --no-audit --no-fund
-          npm run build
+        run: npm run build
 
-      - name: Jalankan pengujian
-        run: php artisan test --filter=LoginRedirectTest
+      - name: Jalankan seluruh test Laravel
+        run: php artisan test
 
       - name: Siapkan dependency production
         run: |
@@ -51,45 +51,15 @@ jobs:
           php artisan route:list --path=login
           php artisan view:cache
 
-      # Upload source, vendor production, dan manifest provider yang baru dibangun.
-      - name: Upload aplikasi Laravel
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          protocol: ftps
-          timeout: 120000
-          local-dir: ./
-          server-dir: laravel_app/
-          state-name: .ftp-app-state.json
-          dry-run: false
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/.github/**
-            **/node_modules/**
-            **/tests/**
-            **/.env
-            **/.env.*
-            **/public/**
-            **/storage/**
-            **/database/*.sqlite
-            **/phpunit.xml
-            **/package-lock.json
+      - name: Buat ZIP deployment
+        run: python3 .github/scripts/package-deployment.py "$RUNNER_TEMP/deployment"
 
-      # Upload file publik
-      - name: Upload file publik
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+      - name: Upload artifact deployment
+        uses: actions/upload-artifact@v4.6.2
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          protocol: ftps
-          timeout: 120000
-          local-dir: ./public/
-          server-dir: public_html/
-          state-name: .ftp-public-state.json
-          dry-run: false
+          name: bank-mini-deployment
+          path: |
+            ${{ runner.temp }}/deployment/laravel_app.zip
+            ${{ runner.temp }}/deployment/public_html.zip
+          if-no-files-found: error
+          retention-days: 7
