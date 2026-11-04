@@ -23,6 +23,15 @@ class LoginRedirectTest extends TestCase
         });
     }
 
+    public function test_guest_can_view_login_form(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('Mini Bank Login')
+            ->assertSee('Username')
+            ->assertSee('/css/bank-mini-ui.css', false);
+    }
+
     public function test_authenticated_teller_is_redirected_from_login_to_their_dashboard(): void
     {
         $teller = User::create([

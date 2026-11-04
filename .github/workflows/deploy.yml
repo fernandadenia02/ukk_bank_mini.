@@ -22,10 +22,14 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          extensions: mbstring, bcmath, pdo_mysql, pdo_sqlite, gd, zip
           tools: composer
 
       - name: Validasi Composer
         run: composer validate --no-check-publish
+
+      - name: Siapkan dependency aplikasi
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Siapkan Node.js
         uses: actions/setup-node@v4
@@ -34,12 +38,20 @@ jobs:
 
       - name: Build aset frontend
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-            npm run build
-          fi
+          npm ci --no-audit --no-fund
+          npm run build
 
-      # Upload aplikasi Laravel
+      - name: Jalankan pengujian
+        run: php artisan test --filter=LoginRedirectTest
+
+      - name: Siapkan dependency production
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          composer check-platform-reqs --no-dev
+          php artisan route:list --path=login
+          php artisan view:cache
+
+      # Upload source, vendor production, dan manifest provider yang baru dibangun.
       - name: Upload aplikasi Laravel
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -52,7 +64,7 @@ jobs:
           local-dir: ./
           server-dir: laravel_app/
           state-name: .ftp-app-state.json
-          dry-run: true
+          dry-run: false
           exclude: |
             **/.git*
             **/.git*/**
@@ -61,11 +73,11 @@ jobs:
             **/tests/**
             **/.env
             **/.env.*
-            **/vendor/**
-            **/storage/**
             **/public/**
-            **/bootstrap/cache/**
+            **/storage/**
+            **/database/*.sqlite
             **/phpunit.xml
+            **/package-lock.json
 
       # Upload file publik
       - name: Upload file publik
