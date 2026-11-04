@@ -2,11 +2,11 @@
 
 @section('title', 'Masuk | Bank Mini Sekolah')
 
-@section('content')
 @push('styles')
     <link href="{{ asset('css/login.css') }}" rel="stylesheet">
 @endpush
 
+@section('content')
 <main class="login-page">
     <section class="login-card" aria-labelledby="login-title">
         <header class="login-brand">

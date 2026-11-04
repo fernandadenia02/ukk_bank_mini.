@@ -25,7 +25,9 @@ class LoginRedirectTest extends TestCase
 
     public function test_guest_can_view_login_form(): void
     {
-        $this->get(route('login'))
+        $response = $this->get(route('login'));
+
+        $response
             ->assertOk()
             ->assertSee('BANK MINI SEKOLAH')
             ->assertSee('Username Petugas')
@@ -39,6 +41,8 @@ class LoginRedirectTest extends TestCase
             ->assertSee('/css/login.css', false)
             ->assertSee('/css/bank-mini-ui.css', false);
 
+        $html = $response->getContent();
+        $this->assertLessThan(strpos($html, '<body'), strpos($html, '/css/login.css'));
         $this->assertFileExists(public_path('images/logo-smkn-1-bantul.png'));
     }
 
