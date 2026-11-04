@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: deploy-bank-mini
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -20,21 +24,22 @@ jobs:
           php-version: '8.3'
           tools: composer
 
-      - name: Install dependency Laravel
-        run: composer install --no-dev --prefer-dist --optimize-autoloader
+      - name: Validasi Composer
+        run: composer validate --no-check-publish
 
       - name: Siapkan Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Build aset frontend jika tersedia
+      - name: Build aset frontend
         run: |
           if [ -f package-lock.json ]; then
             npm ci
             npm run build
           fi
 
+      # Upload aplikasi Laravel
       - name: Upload aplikasi Laravel
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -43,21 +48,26 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT }}
           protocol: ftps
-          timeout: 60000
+          timeout: 120000
           local-dir: ./
           server-dir: laravel_app/
           state-name: .ftp-app-state.json
+          dry-run: true
           exclude: |
             **/.git*
             **/.git*/**
             **/.github/**
             **/node_modules/**
             **/tests/**
-            **/.env*
-            **/public/**
+            **/.env
+            **/.env.*
+            **/vendor/**
             **/storage/**
+            **/public/**
             **/bootstrap/cache/**
+            **/phpunit.xml
 
+      # Upload file publik
       - name: Upload file publik
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
@@ -66,6 +76,8 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT }}
           protocol: ftps
+          timeout: 120000
           local-dir: ./public/
           server-dir: public_html/
           state-name: .ftp-public-state.json
+          dry-run: true
