@@ -80,4 +80,4 @@ jobs:
           local-dir: ./public/
           server-dir: public_html/
           state-name: .ftp-public-state.json
-          dry-run: true
+          dry-run: false
