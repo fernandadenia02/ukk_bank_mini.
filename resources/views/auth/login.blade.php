@@ -1,56 +1,54 @@
 @extends('layouts.auth')
 
-@section('title', 'Login')
+@section('title', 'Masuk | Bank Mini Sekolah')
 
 @section('content')
+@push('styles')
+    <link href="{{ asset('css/login.css') }}" rel="stylesheet">
+@endpush
 
-<div class="container mt-5" style="max-width:450px;">
+<main class="login-page">
+    <section class="login-card" aria-labelledby="login-title">
+        <header class="login-brand">
+            <img
+                src="{{ asset('images/logo-smkn-1-bantul.png') }}"
+                alt="Logo SMK Negeri 1 Bantul"
+                class="login-logo">
+            <div>
+                <p class="login-brand-name">BANK MINI SEKOLAH</p>
+                <p class="login-brand-caption">SMK Negeri 1 Bantul</p>
+            </div>
+        </header>
 
-    <div class="card shadow">
+        <div class="login-content">
+            <div class="login-heading">
+                <span class="login-eyebrow">PORTAL PETUGAS</span>
+                <h1 id="login-title">Selamat Datang</h1>
+                <p>Masuk untuk melanjutkan ke sistem Bank Mini.</p>
+            </div>
 
-        <div class="card-header text-center bg-primary text-white">
-            <h4>Mini Bank Login</h4>
-            <p class="mb-0">Sistem Informasi Bank Mini</p>
-        </div>
-
-        <div class="card-body">
-
-            {{-- Pesan login gagal --}}
             @if(session('error'))
-                <div class="alert alert-danger">
-                    {{ session('error') }}
-                </div>
+                <div class="alert alert-danger" role="alert">{{ session('error') }}</div>
             @endif
 
-            {{-- Pesan berhasil reset password --}}
             @if(session('status'))
-                <div class="alert alert-success">
-                    {{ session('status') }}
-                </div>
+                <div class="alert alert-success" role="status">{{ session('status') }}</div>
             @endif
 
-            {{-- Pesan validasi --}}
             @if($errors->any())
-                <div class="alert alert-danger">
-                    {{ $errors->first() }}
-                </div>
+                <div class="alert alert-danger" role="alert">{{ $errors->first() }}</div>
             @endif
 
-            {{-- Form Login --}}
-            <form action="{{ route('login.authenticate') }}" method="POST">
-
+            <form action="{{ route('login.authenticate') }}" method="POST" class="login-form">
                 @csrf
 
                 <div class="mb-3">
-                    <label for="username" class="form-label">
-                        Username
-                    </label>
-
+                    <label for="username" class="form-label">Username Petugas</label>
                     <input
                         type="text"
                         id="username"
                         name="username"
-                        class="form-control"
+                        class="form-control login-input"
                         value="{{ old('username') }}"
                         placeholder="Masukkan username"
                         autocomplete="username"
@@ -58,43 +56,48 @@
                         autofocus>
                 </div>
 
-                <div class="mb-3">
-                    <label for="password" class="form-label">
-                        Password
-                    </label>
-
+                <div class="mb-2">
+                    <div class="login-password-label">
+                        <label for="password" class="form-label">Kata Sandi</label>
+                        <a href="{{ route('password.request') }}">Lupa kata sandi?</a>
+                    </div>
                     <input
                         type="password"
                         id="password"
                         name="password"
-                        class="form-control"
-                        placeholder="Masukkan password"
+                        class="form-control login-input"
+                        placeholder="Masukkan kata sandi"
                         autocomplete="current-password"
                         required>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-100">
-                    Login
+                <button type="submit" class="btn login-submit w-100">
+                    Masuk ke Sistem
                 </button>
-
             </form>
 
-            {{-- Lupa Password --}}
-            <div class="text-center mt-3">
-                <a href="{{ route('password.request') }}"
-                   class="text-decoration-none">
-                    Lupa Password?
+            <section class="login-download" aria-labelledby="download-title">
+                <div class="login-download-copy">
+                    <span class="login-download-mark" aria-hidden="true">↓</span>
+                    <div>
+                        <h2 id="download-title">Untuk Nasabah Siswa</h2>
+                        <p>Akses layanan tabungan secara mandiri melalui aplikasi nasabah.</p>
+                    </div>
+                </div>
+                <a
+                    href="https://bank-mini-fernanda.web.id/downloads/app-release.apk"
+                    class="btn login-download-button w-100"
+                    download>
+                    Unduh Aplikasi Android (.APK)
                 </a>
-            </div>
-
+            </section>
         </div>
 
-        <div class="card-footer text-center text-muted">
-            <small>Mini Bank &copy; {{ date('Y') }}</small>
-        </div>
-
-    </div>
-
-</div>
+        <footer class="login-footer">
+            <span>Bank Mini Sekolah</span>
+            <span>&copy; {{ date('Y') }} SMK Negeri 1 Bantul</span>
+        </footer>
+    </section>
+</main>
 
 @endsection

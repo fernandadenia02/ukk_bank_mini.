@@ -27,9 +27,19 @@ class LoginRedirectTest extends TestCase
     {
         $this->get(route('login'))
             ->assertOk()
-            ->assertSee('Mini Bank Login')
-            ->assertSee('Username')
+            ->assertSee('BANK MINI SEKOLAH')
+            ->assertSee('Username Petugas')
+            ->assertSee('Untuk Nasabah Siswa')
+            ->assertSee('Akses layanan tabungan secara mandiri melalui aplikasi nasabah.')
+            ->assertDontSee('Flutter')
+            ->assertSee('Masuk ke Sistem')
+            ->assertSee('https://bank-mini-fernanda.web.id/downloads/app-release.apk', false)
+            ->assertSee('Logo SMK Negeri 1 Bantul')
+            ->assertSee('/images/logo-smkn-1-bantul.png', false)
+            ->assertSee('/css/login.css', false)
             ->assertSee('/css/bank-mini-ui.css', false);
+
+        $this->assertFileExists(public_path('images/logo-smkn-1-bantul.png'));
     }
 
     public function test_authenticated_teller_is_redirected_from_login_to_their_dashboard(): void
