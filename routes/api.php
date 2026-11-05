@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\BankStatusController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\ForgotPasswordController;
@@ -32,6 +33,8 @@ Route::prefix('customer')->group(function () {
     // =========================
 
     Route::middleware('auth:sanctum')->group(function () {
+
+        Route::get('/bank-status', [BankStatusController::class, 'show']);
 
         Route::post('/logout', [
             AuthController::class,

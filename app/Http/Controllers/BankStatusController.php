@@ -7,6 +7,16 @@ use Illuminate\Http\Request;
 
 class BankStatusController extends Controller
 {
+    public function show()
+    {
+        return response()->json([
+            'message' => 'Status bank berhasil diambil.',
+            'data' => [
+                'is_open' => BankStatus::current()->is_open,
+            ],
+        ]);
+    }
+
     public function update(Request $request)
     {
         $validated = $request->validate([
