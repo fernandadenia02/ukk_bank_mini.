@@ -69,10 +69,10 @@ jobs:
 
       - name: Upload otomatis ke hosting melalui FTPS
         env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_HOST: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-          FTP_PORT: ${{ vars.FTP_PORT }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
           FTP_APP_DIR: ${{ vars.FTP_APP_DIR }}
           FTP_PUBLIC_DIR: ${{ vars.FTP_PUBLIC_DIR }}
         run: |
