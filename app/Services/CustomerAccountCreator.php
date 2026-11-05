@@ -38,26 +38,45 @@ class CustomerAccountCreator
             throw new \RuntimeException('File QR code customer sudah ada.');
         }
 
-        try {
-            $writtenBytes = file_put_contents(
-                $qrPath,
-                QrCode::size(300)->generate($customer->account_number)
-            );
-
-            if ($writtenBytes === false) {
-                throw new \RuntimeException('QR code customer tidak dapat dibuat.');
-            }
-
-            $customer->update(['qrcode' => $fileName]);
-        } catch (\Throwable $e) {
-            if (is_file($qrPath)) {
-                unlink($qrPath);
-            }
-
-            throw $e;
-        }
+        $this->ensureQrCode($customer);
 
         return [$customer, $qrPath];
+    }
+
+    public function ensureQrCode(Customer $customer): string
+    {
+        $directory = public_path('qrcode');
+        if (!is_dir($directory) && !mkdir($directory, 0777, true) && !is_dir($directory)) {
+            throw new \RuntimeException('Folder QR code tidak dapat dibuat.');
+        }
+
+        $fileName = $customer->account_number . '.svg';
+        $qrPath = $directory . DIRECTORY_SEPARATOR . $fileName;
+
+        if (!is_file($qrPath)) {
+            try {
+                $writtenBytes = file_put_contents(
+                    $qrPath,
+                    QrCode::size(300)->generate($customer->account_number)
+                );
+
+                if ($writtenBytes === false) {
+                    throw new \RuntimeException('QR code customer tidak dapat dibuat.');
+                }
+            } catch (\Throwable $e) {
+                if (is_file($qrPath)) {
+                    unlink($qrPath);
+                }
+
+                throw $e;
+            }
+        }
+
+        if ($customer->qrcode !== $fileName) {
+            $customer->update(['qrcode' => $fileName]);
+        }
+
+        return $fileName;
     }
 
     private function availableUsername(string $name): string

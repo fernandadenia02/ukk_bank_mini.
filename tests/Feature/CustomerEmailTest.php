@@ -12,9 +12,15 @@ use Tests\TestCase;
 
 class CustomerEmailTest extends TestCase
 {
+    private string $testPublicPath;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->testPublicPath = storage_path('framework/testing/customer-email-' . uniqid());
+        File::ensureDirectoryExists($this->testPublicPath);
+        app()->usePublicPath($this->testPublicPath);
 
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
@@ -60,6 +66,12 @@ class CustomerEmailTest extends TestCase
             $table->decimal('ending_balance', 12, 2);
             $table->dateTime('date');
         });
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory($this->testPublicPath);
+        parent::tearDown();
     }
 
     public function test_create_customer_form_has_required_email_input_for_otp_recovery(): void
@@ -164,10 +176,34 @@ class CustomerEmailTest extends TestCase
             ->assertOk()
             ->assertSee('Customer Belum Aktif')
             ->assertSee('New Customer');
+        $this->assertFileExists(public_path('qrcode/' . $customer->qrcode));
+    }
 
-        if ($customer->qrcode) {
-            File::delete(public_path('qrcode/' . $customer->qrcode));
-        }
+    public function test_customer_list_regenerates_missing_qr_code_files(): void
+    {
+        $admin = $this->createAdmin();
+        $customer = Customer::create([
+            'account_number' => '10000009',
+            'nis' => 'NIS-MISSING-QR',
+            'name' => 'Customer Missing QR',
+            'email' => 'missing-qr@example.test',
+            'class' => 'XII',
+            'location' => 'Jakarta',
+            'telephone_number' => '081234567890',
+            'pin' => bcrypt('123456'),
+            'balance' => 10000,
+            'status' => 'aktif',
+            'qrcode' => 'old-missing.svg',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('customers.index'))
+            ->assertOk()
+            ->assertSee('Customer Missing QR');
+
+        $this->assertSame('10000009.svg', $customer->fresh()->qrcode);
+        $this->assertFileExists(public_path('qrcode/10000009.svg'));
+        $response->assertSee('src="' . asset('qrcode/10000009.svg') . '"', false);
     }
 
     public function test_admin_cannot_activate_customer_with_less_than_minimum_balance(): void

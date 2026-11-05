@@ -20,7 +20,7 @@ class CustomerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(Request $request, CustomerAccountCreator $accountCreator)
     {
         $keyword = $request->keyword;
 
@@ -51,6 +51,10 @@ class CustomerController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(10, ['*'], 'inactive_page')
             ->withQueryString();
+
+        $customers->getCollection()
+            ->concat($inactiveCustomers->getCollection())
+            ->each(fn (Customer $customer) => $accountCreator->ensureQrCode($customer));
 
         return view('customers.index', compact(
             'customers',
