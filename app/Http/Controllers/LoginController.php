@@ -115,6 +115,8 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
+        $sessionExpired = $request->boolean('idle_timeout');
+
         Auth::guard('web')->logout();
         Auth::guard('customer')->logout();
 
@@ -122,6 +124,12 @@ class LoginController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        $response = redirect()->route('login');
+
+        if ($sessionExpired) {
+            $response->with('error', 'Sesi berakhir karena tidak ada aktivitas selama 5 menit. Silakan login kembali.');
+        }
+
+        return $response;
     }
 }

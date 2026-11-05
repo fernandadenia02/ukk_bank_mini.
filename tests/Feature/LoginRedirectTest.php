@@ -63,4 +63,42 @@ class LoginRedirectTest extends TestCase
         $this->get('/')
             ->assertRedirect(route('teller.dashboard'));
     }
+
+    public function test_session_timeout_is_five_minutes_and_layout_submits_idle_logout(): void
+    {
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+
+        $this->assertSame(5, config('session.lifetime'));
+
+        $this->actingAs($teller)
+            ->view('layouts.app')
+            ->assertSee('idleTimeout = 5 * 60 * 1000', false)
+            ->assertSee("timeoutField.name = 'idle_timeout'", false)
+            ->assertSee("logoutForm.requestSubmit()", false);
+    }
+
+    public function test_idle_logout_redirects_to_login_with_expiration_message(): void
+    {
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('logout'), ['idle_timeout' => '1'])
+            ->assertRedirect(route('login'))
+            ->assertSessionHas(
+                'error',
+                'Sesi berakhir karena tidak ada aktivitas selama 5 menit. Silakan login kembali.'
+            );
+    }
 }

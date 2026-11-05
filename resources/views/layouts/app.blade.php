@@ -724,6 +724,7 @@
             <form
                 action="{{ route('logout') }}"
                 method="POST"
+                id="logoutForm"
             >
 
                 @csrf
@@ -795,6 +796,61 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', function () {
+
+    const idleTimeout = 5 * 60 * 1000;
+    const activityKey = 'bank-mini-last-activity';
+    const logoutForm = document.getElementById('logoutForm');
+    let lastActivity = Date.now();
+    let logoutSubmitted = false;
+
+    function readLastActivity() {
+        try {
+            return Number(localStorage.getItem(activityKey)) || lastActivity;
+        } catch {
+            return lastActivity;
+        }
+    }
+
+    function recordActivity() {
+        lastActivity = Date.now();
+
+        try {
+            localStorage.setItem(activityKey, String(lastActivity));
+        } catch {
+            // Fall back to the current tab if browser storage is unavailable.
+        }
+    }
+
+    recordActivity();
+
+    ['click', 'keydown', 'mousemove', 'pointerdown', 'scroll', 'touchstart'].forEach(function (eventName) {
+        let lastRecorded = 0;
+        document.addEventListener(eventName, function () {
+            const now = Date.now();
+            if (now - lastRecorded >= 1000) {
+                lastRecorded = now;
+                recordActivity();
+            }
+        }, { passive: true });
+    });
+
+    window.setInterval(function () {
+        if (
+            logoutSubmitted ||
+            Date.now() - readLastActivity() < idleTimeout ||
+            !logoutForm
+        ) {
+            return;
+        }
+
+        logoutSubmitted = true;
+        const timeoutField = document.createElement('input');
+        timeoutField.type = 'hidden';
+        timeoutField.name = 'idle_timeout';
+        timeoutField.value = '1';
+        logoutForm.appendChild(timeoutField);
+        logoutForm.requestSubmit();
+    }, 1000);
 
 
     const sidebar =
