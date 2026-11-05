@@ -7,9 +7,9 @@ use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\DailyReport;
 use App\Models\CashAdvanceRequest;
-use App\Models\BankStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class DashboardController extends Controller
@@ -174,7 +174,9 @@ class DashboardController extends Controller
  */
 public function teller(Request $request)
 {
-    $bankIsOpen = BankStatus::current()->is_open;
+    $bankIsOpen = (bool) DB::table('bank_statuses')
+        ->where('id', 1)
+        ->value('is_open');
 
     // ==========================
     // TRANSAKSI HARI INI
@@ -306,6 +308,25 @@ public function teller(Request $request)
         )
     );
 }
+
+public function updateBankStatus(Request $request)
+{
+    $validated = $request->validate([
+        'is_open' => ['required', 'boolean'],
+    ]);
+
+    DB::table('bank_statuses')
+        ->where('id', 1)
+        ->update(['is_open' => $validated['is_open']]);
+
+    return back()->with(
+        'success',
+        $validated['is_open']
+            ? 'Status bank berhasil diubah menjadi buka.'
+            : 'Bank sedang istirahat dan ditutup sementara.'
+    );
+}
+
     /**
      * ==========================================
      * DASHBOARD SUPERVISOR
@@ -380,7 +401,9 @@ public function teller(Request $request)
      */
     public function customer()
     {
-        $bankIsOpen = BankStatus::current()->is_open;
+        $bankIsOpen = (bool) DB::table('bank_statuses')
+            ->where('id', 1)
+            ->value('is_open');
 
         // ==========================
         // DATA CUSTOMER LOGIN

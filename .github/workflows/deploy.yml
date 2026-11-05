@@ -54,6 +54,9 @@ jobs:
       - name: Buat ZIP deployment
         run: python3 .github/scripts/package-deployment.py "$RUNNER_TEMP/deployment"
 
+      - name: Validasi skrip FTPS
+        run: python3 -m py_compile .github/scripts/deploy-ftp.py
+
       - name: Upload artifact deployment
         uses: actions/upload-artifact@v4.6.2
         with:
@@ -63,3 +66,16 @@ jobs:
             ${{ runner.temp }}/deployment/public_html.zip
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload otomatis ke hosting melalui FTPS
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ vars.FTP_PORT }}
+          FTP_APP_DIR: ${{ vars.FTP_APP_DIR }}
+          FTP_PUBLIC_DIR: ${{ vars.FTP_PUBLIC_DIR }}
+        run: |
+          python3 .github/scripts/deploy-ftp.py \
+            "$RUNNER_TEMP/deployment/laravel_app.zip" \
+            "$RUNNER_TEMP/deployment/public_html.zip"
