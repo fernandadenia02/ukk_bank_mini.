@@ -95,6 +95,24 @@ class BankStatusTest extends TestCase
         );
     }
 
+    public function test_teller_controls_show_clear_close_and_open_actions(): void
+    {
+        $openView = view('shared.bank-status', [
+            'bankIsOpen' => true,
+            'showControls' => true,
+        ])->render();
+        $closedView = view('shared.bank-status', [
+            'bankIsOpen' => false,
+            'showControls' => true,
+        ])->render();
+
+        $this->assertStringContainsString('Tutup Bank / Istirahat', $openView);
+        $this->assertStringContainsString('action="' . route('teller.bank-status.update') . '"', $openView);
+        $this->assertStringContainsString('name="is_open" value="0"', $openView);
+        $this->assertStringContainsString('Buka Bank', $closedView);
+        $this->assertStringContainsString('name="is_open" value="1"', $closedView);
+    }
+
     private function createUser(string $role): User
     {
         return User::create([

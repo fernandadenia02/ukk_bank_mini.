@@ -13,7 +13,7 @@
                 @csrf
                 <input type="hidden" name="is_open" value="{{ $bankIsOpen ? '0' : '1' }}">
                 <button type="submit" class="btn {{ $bankIsOpen ? 'btn-warning' : 'btn-success' }}">
-                    {{ $bankIsOpen ? 'Mulai Istirahat' : 'Buka Bank' }}
+                    {{ $bankIsOpen ? 'Tutup Bank / Istirahat' : 'Buka Bank' }}
                 </button>
             </form>
         @endif
