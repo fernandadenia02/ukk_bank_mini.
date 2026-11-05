@@ -316,6 +316,23 @@ class CustomerEmailTest extends TestCase
         ]);
     }
 
+    public function test_user_management_displays_and_searches_by_email(): void
+    {
+        $admin = $this->createAdmin();
+        $admin->update(['email' => 'admin@example.test']);
+
+        $this->actingAs($admin)
+            ->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('Email')
+            ->assertSee('admin@example.test');
+
+        $this->actingAs($admin)
+            ->get(route('users.index', ['keyword' => 'admin@example.test']))
+            ->assertOk()
+            ->assertSee('admin@example.test');
+    }
+
     public function test_user_management_displays_the_database_user_id(): void
     {
         $admin = $this->createAdmin();

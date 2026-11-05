@@ -104,6 +104,11 @@
                     </th>
 
                     <th>
+
+                        Email
+                    </th>
+
+                    <th>
                         
                         Role
                     </th>
@@ -146,6 +151,8 @@
                     <td>{{ $user->officer_name }}</td>
 
                     <td>{{ $user->username }}</td>
+
+                    <td>{{ $user->email ?: '-' }}</td>
 
                     <td>
 
@@ -251,7 +258,7 @@
 
                 <tr>
 
-                    <td colspan="7" class="text-center">
+                    <td colspan="8" class="text-center">
 
                         No user data available.
 

@@ -20,6 +20,7 @@ class UserController extends Controller
             $query->where(function ($query) use ($keyword) {
                 $query->where('officer_name', 'like', "%{$keyword}%")
                     ->orWhere('username', 'like', "%{$keyword}%")
+                    ->orWhere('email', 'like', "%{$keyword}%")
                     ->orWhere('role', 'like', "%{$keyword}%");
             });
         })
