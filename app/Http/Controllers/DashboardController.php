@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\DailyReport;
 use App\Models\CashAdvanceRequest;
+use App\Models\BankStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -173,6 +174,8 @@ class DashboardController extends Controller
  */
 public function teller(Request $request)
 {
+    $bankIsOpen = BankStatus::current()->is_open;
+
     // ==========================
     // TRANSAKSI HARI INI
     // ==========================
@@ -298,7 +301,8 @@ public function teller(Request $request)
             'rejectedReports',
             'customers',
             'inactiveCustomers',
-            'search'
+            'search',
+            'bankIsOpen'
         )
     );
 }
@@ -376,6 +380,8 @@ public function teller(Request $request)
      */
     public function customer()
     {
+        $bankIsOpen = BankStatus::current()->is_open;
+
         // ==========================
         // DATA CUSTOMER LOGIN
         // ==========================
@@ -464,7 +470,8 @@ public function teller(Request $request)
                 'latestTransactions',
                 'totalTransactions',
                 'totalDeposit',
-                'totalWithdrawal'
+                'totalWithdrawal',
+                'bankIsOpen'
             )
         );
     }

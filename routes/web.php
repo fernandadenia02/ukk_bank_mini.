@@ -13,6 +13,7 @@ use App\Http\Controllers\AccountingJournalController;
 use App\Http\Controllers\MonthlyReportController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\CashAdvanceRequestController;
+use App\Http\Controllers\BankStatusController;
 
 // API DOCUMENTATION
 Route::get('/api-docs', function () {
@@ -150,6 +151,9 @@ Route::middleware('auth')->group(function () {
 
     // KHUSUS TELLER
     Route::middleware('role:teller')->group(function () {
+        Route::post('/teller/bank-status', [BankStatusController::class, 'update'])
+            ->name('teller.bank-status.update');
+
         Route::post('/my-daily-reports/opening-cash', [CashAdvanceRequestController::class, 'store'])
             ->name('teller.daily-reports.opening-cash');
         Route::post('/my-daily-reports/close', [DailyReportController::class, 'closeCash'])

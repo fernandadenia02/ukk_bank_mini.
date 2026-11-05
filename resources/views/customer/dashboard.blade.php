@@ -147,6 +147,7 @@
 
     </div>
 
+    @include('shared.bank-status', ['bankIsOpen' => $bankIsOpen, 'showControls' => false])
 
     {{-- ========================================= --}}
     {{-- SALDO UTAMA --}}

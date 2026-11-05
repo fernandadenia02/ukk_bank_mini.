@@ -22,6 +22,7 @@
 
     </div>
 
+    @include('shared.bank-status', ['bankIsOpen' => $bankIsOpen, 'showControls' => true])
 
     {{-- =============================== --}}
     {{-- STATISTIK --}}
