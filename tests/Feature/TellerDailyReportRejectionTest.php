@@ -23,6 +23,12 @@ class TellerDailyReportRejectionTest extends TestCase
             $table->string('status');
         });
 
+        Schema::create('bank_statuses', function (Blueprint $table): void {
+            $table->unsignedTinyInteger('id')->primary();
+            $table->boolean('is_open')->default(true);
+        });
+        DB::table('bank_statuses')->insert(['id' => 1, 'is_open' => true]);
+
         Schema::create('customers', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();

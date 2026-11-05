@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -24,6 +25,12 @@ class CustomerEmailTest extends TestCase
             $table->string('role');
             $table->string('status');
         });
+
+        Schema::create('bank_statuses', function (Blueprint $table): void {
+            $table->unsignedTinyInteger('id')->primary();
+            $table->boolean('is_open')->default(true);
+        });
+        DB::table('bank_statuses')->insert(['id' => 1, 'is_open' => true]);
 
         Schema::create('customers', function (Blueprint $table): void {
             $table->id();
