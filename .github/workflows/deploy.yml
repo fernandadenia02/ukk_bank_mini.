@@ -73,8 +73,8 @@ jobs:
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_PORT: ${{ secrets.FTP_PORT }}
-          FTP_APP_DIR: ${{ vars.FTP_APP_DIR }}
-          FTP_PUBLIC_DIR: ${{ vars.FTP_PUBLIC_DIR }}
+          FTP_APP_DIR: ${{ vars.FTP_APP_DIR || secrets.FTP_APP_DIR || 'laravel_app' }}
+          FTP_PUBLIC_DIR: ${{ vars.FTP_PUBLIC_DIR || secrets.FTP_PUBLIC_DIR || 'public_html' }}
         run: |
           python3 .github/scripts/deploy-ftp.py \
             "$RUNNER_TEMP/deployment/laravel_app.zip" \
