@@ -14,7 +14,6 @@ APP_PATHS = (
     "lang",
     "resources",
     "routes",
-    "vendor",
     "artisan",
     "composer.json",
     "composer.lock",
