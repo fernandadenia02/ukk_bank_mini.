@@ -66,11 +66,13 @@ class ForgotPasswordOtpTest extends TestCase
             'email' => 'customer@example.test',
         ])
             ->assertRedirect(route('password.reset.form'))
+            ->assertSessionHas('status', 'Jika akun terdaftar, OTP berhasil dikirimkan. Silakan cek email dan folder spam.')
             ->assertSessionHas('_old_input.identity', '10000001')
             ->assertSessionHas('_old_input.email', 'customer@example.test');
 
         $this->get(route('password.reset.form'))
             ->assertOk()
+            ->assertSee('OTP berhasil dikirimkan. Silakan cek email dan folder spam.')
             ->assertSee('value="10000001"', false)
             ->assertSee('value="customer@example.test"', false);
     }
@@ -86,7 +88,7 @@ class ForgotPasswordOtpTest extends TestCase
             ->assertOk()
             ->assertExactJson([
                 'success' => true,
-                'message' => 'Jika email terdaftar, kode OTP akan dikirim.',
+                'message' => 'Jika akun terdaftar, OTP berhasil dikirimkan. Silakan cek email dan folder spam.',
             ]);
 
         $otpHash = DB::table('password_reset_otps')

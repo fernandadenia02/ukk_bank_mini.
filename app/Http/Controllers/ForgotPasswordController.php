@@ -29,7 +29,7 @@ class ForgotPasswordController extends Controller
 
         $identity = trim($validated['identity']);
         $email = strtolower(trim($validated['email']));
-        $message = 'Jika email terdaftar, kode OTP akan dikirim.';
+        $message = 'Jika akun terdaftar, OTP berhasil dikirimkan. Silakan cek email dan folder spam.';
 
         if (!$this->issueOtpForIdentity($identity, $email)) {
             return back()
@@ -64,7 +64,7 @@ class ForgotPasswordController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Jika email terdaftar, kode OTP akan dikirim.',
+            'message' => 'Jika akun terdaftar, OTP berhasil dikirimkan. Silakan cek email dan folder spam.',
         ]);
     }
 
