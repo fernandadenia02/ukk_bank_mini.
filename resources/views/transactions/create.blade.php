@@ -1090,6 +1090,35 @@ document.addEventListener('DOMContentLoaded', function () {
         pinApprovalStatus.className = 'small text-muted';
     }
 
+    async function readPinApprovalResponse(response) {
+        const responseText = await response.text();
+        let result;
+
+        try {
+            result = JSON.parse(responseText);
+        } catch {
+            if (response.redirected || response.url.includes('/login')) {
+                throw new Error('Sesi teller telah berakhir. Silakan login kembali lalu ulangi permintaan PIN.');
+            }
+
+            if (response.status === 419) {
+                throw new Error('Sesi keamanan halaman telah berakhir. Muat ulang halaman lalu coba kembali.');
+            }
+
+            if (response.status === 401) {
+                throw new Error('Sesi teller telah berakhir. Silakan login kembali lalu ulangi permintaan PIN.');
+            }
+
+            throw new Error(`Server tidak memberikan respons yang valid (HTTP ${response.status}). Muat ulang halaman atau hubungi administrator.`);
+        }
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || `Permintaan gagal (HTTP ${response.status}).`);
+        }
+
+        return result;
+    }
+
     requestCustomerPin.addEventListener('click', async function () {
         const selectedCustomerId = customerSelect.value;
         const amountValue = amount.value.replace(/\D/g, '');
@@ -1116,11 +1145,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     amount: amountValue,
                 }),
             });
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || 'Permintaan PIN gagal dikirim.');
-            }
+            const result = await readPinApprovalResponse(response);
 
             const approvalId = result.data.id;
             const statusUrl = customerPinGroup.dataset.statusUrl.replace('__APPROVAL_ID__', approvalId);
@@ -1132,11 +1157,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const statusResponse = await fetch(statusUrl, {
                         headers: { 'Accept': 'application/json' },
                     });
-                    const statusResult = await statusResponse.json();
-
-                    if (!statusResponse.ok || !statusResult.success) {
-                        throw new Error(statusResult.message || 'Status persetujuan PIN tidak dapat diperiksa.');
-                    }
+                    const statusResult = await readPinApprovalResponse(statusResponse);
 
                     if (statusResult.data.status === 'approved') {
                         window.clearInterval(pinApprovalPoll);
