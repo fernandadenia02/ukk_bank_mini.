@@ -61,7 +61,7 @@
                         <label for="password" class="form-label">Kata Sandi</label>
                         <a href="{{ route('password.request') }}">Lupa kata sandi?</a>
                     </div>
-                    <div class="login-password-input">
+                    <div class="input-group login-password-input">
                         <input
                             type="password"
                             id="password"
@@ -72,7 +72,7 @@
                             required>
                         <button
                             type="button"
-                            class="login-password-toggle"
+                            class="btn login-password-toggle"
                             data-password-toggle
                             aria-label="Lihat kata sandi"
                             aria-controls="password"

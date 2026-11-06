@@ -103,31 +103,38 @@ body:has(.login-page) {
 }
 
 .login-password-input {
-    position: relative;
+    flex-wrap: nowrap;
 }
 
 .login-password-input .login-input {
-    padding-right: 3.25rem;
+    min-width: 0;
+    border-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .login-password-toggle {
-    position: absolute;
-    top: 50%;
-    right: 8px;
     display: inline-flex;
-    width: 36px;
-    height: 36px;
+    min-width: 48px;
     align-items: center;
     justify-content: center;
-    transform: translateY(-50%);
-    border: 0;
+    border: 1px solid #dce1ed;
+    border-left: 0;
+    border-top-right-radius: 11px;
+    border-bottom-right-radius: 11px;
     color: #5146de;
-    background: transparent;
+    background: #fbfcff;
     cursor: pointer;
 }
 
+.login-password-toggle:hover,
+.login-password-toggle:focus {
+    border-color: #786ff0;
+    color: #30277f;
+    background: #fff;
+}
+
 .login-password-toggle:focus-visible {
-    border-radius: 4px;
     outline: 2px solid #786ff0;
     outline-offset: 2px;
 }
