@@ -8,15 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // MySQL dapat menyisakan tabel jika penambahan constraint gagal.
-        if (Schema::hasTable('withdrawal_pin_approvals')) {
-            return;
-        }
-
         Schema::create('withdrawal_pin_approvals', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('customer_id');
-            $table->unsignedBigInteger('teller_id');
+            $table->integer('customer_id');
+            $table->integer('teller_id');
             $table->decimal('amount', 12, 2);
             $table->string('status', 20)->default('pending');
             $table->timestamp('expires_at')->index();
@@ -24,6 +19,8 @@ return new class extends Migration
             $table->timestamp('consumed_at')->nullable();
             $table->timestamps();
 
+            $table->foreign('customer_id')->references('id')->on('customers')->cascadeOnDelete();
+            $table->foreign('teller_id')->references('id')->on('users')->cascadeOnDelete();
             $table->index(['customer_id', 'status', 'expires_at']);
             $table->index(['teller_id', 'status']);
         });

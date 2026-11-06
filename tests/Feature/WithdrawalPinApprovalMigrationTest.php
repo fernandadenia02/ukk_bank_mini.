@@ -7,7 +7,7 @@ use Tests\TestCase;
 
 class WithdrawalPinApprovalMigrationTest extends TestCase
 {
-    public function test_migration_is_idempotent_when_table_already_exists(): void
+    public function test_migration_creates_table_with_customer_and_teller_foreign_keys(): void
     {
         Schema::dropIfExists('withdrawal_pin_approvals');
         $migration = require database_path(
@@ -27,12 +27,14 @@ class WithdrawalPinApprovalMigrationTest extends TestCase
             'consumed_at',
         ]));
 
-        $migration->up();
+        $foreignKeys = Schema::getForeignKeys('withdrawal_pin_approvals');
+        $foreignKeyColumns = collect($foreignKeys)
+            ->pluck('columns')
+            ->flatten()
+            ->sort()
+            ->values()
+            ->all();
 
-        $this->assertTrue(Schema::hasColumns('withdrawal_pin_approvals', [
-            'customer_id',
-            'teller_id',
-            'status',
-        ]));
+        $this->assertSame(['customer_id', 'teller_id'], $foreignKeyColumns);
     }
 }
