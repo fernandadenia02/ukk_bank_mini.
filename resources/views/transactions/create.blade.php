@@ -526,29 +526,18 @@
                 <div
                     id="customerPinGroup"
                     class="mb-4"
+                    data-create-url="{{ route('transactions.pin-approval.create') }}"
+                    data-status-url="{{ route('transactions.pin-approval.status', ['approvalId' => '__APPROVAL_ID__']) }}"
                     style="display:none;">
-
-                    <label for="customer_pin" class="form-label">
-                        PIN Nasabah
-                    </label>
-
-                    <input
-                        type="password"
-                        name="customer_pin"
-                        id="customer_pin"
-                        class="form-control form-control-lg"
-                        inputmode="numeric"
-                        pattern="[0-9]{6}"
-                        minlength="6"
-                        maxlength="6"
-                        autocomplete="off"
-                        placeholder="Masukkan PIN 6 angka nasabah"
-                        disabled>
-
-                    <small class="text-muted">
-                        PIN nasabah diperlukan untuk transaksi penarikan.
-                    </small>
-
+                    <input type="hidden" name="pin_approval_id" id="pin_approval_id" disabled>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" id="requestCustomerPin" class="btn btn-outline-primary">
+                            Minta PIN melalui Aplikasi Nasabah
+                        </button>
+                        <span id="pinApprovalStatus" class="small text-muted" role="status" aria-live="polite">
+                            Nasabah perlu menyetujui transaksi di aplikasi.
+                        </span>
+                    </div>
                 </div>
 
 
@@ -598,7 +587,9 @@
 
                     <button
                         type="submit"
-                        class="btn btn-success btn-lg">
+                        id="saveTransactionButton"
+                        class="btn btn-success btn-lg"
+                        disabled>
 
                         
 
@@ -793,8 +784,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const customerPinGroup =
         document.getElementById('customerPinGroup');
 
-    const customerPin =
-        document.getElementById('customer_pin');
+    const pinApprovalId =
+        document.getElementById('pin_approval_id');
+
+    const requestCustomerPin =
+        document.getElementById('requestCustomerPin');
+
+    const pinApprovalStatus =
+        document.getElementById('pinApprovalStatus');
+
+    const saveTransactionButton =
+        document.getElementById('saveTransactionButton');
 
     const transactionForm =
         document.getElementById('transactionForm');
@@ -857,6 +857,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let html5QrCode = null;
 
     let scannerRunning = false;
+
+    let pinApprovalPoll = null;
 
 
     // =========================
@@ -1066,13 +1068,119 @@ document.addEventListener('DOMContentLoaded', function () {
         customerPinGroup.style.display =
             withdrawalSelected ? 'block' : 'none';
 
-        customerPin.disabled = !withdrawalSelected;
-        customerPin.required = withdrawalSelected;
-
         if (!withdrawalSelected) {
-            customerPin.value = '';
+            resetPinApproval();
+            saveTransactionButton.disabled = false;
+        } else {
+            saveTransactionButton.disabled = !pinApprovalId.value;
         }
     }
+
+    function resetPinApproval(message = 'Nasabah perlu menyetujui transaksi di aplikasi.') {
+        if (pinApprovalPoll) {
+            window.clearInterval(pinApprovalPoll);
+            pinApprovalPoll = null;
+        }
+
+        pinApprovalId.value = '';
+        pinApprovalId.disabled = true;
+        requestCustomerPin.disabled = false;
+        requestCustomerPin.classList.remove('d-none');
+        pinApprovalStatus.textContent = message;
+        pinApprovalStatus.className = 'small text-muted';
+    }
+
+    requestCustomerPin.addEventListener('click', async function () {
+        const selectedCustomerId = customerSelect.value;
+        const amountValue = amount.value.replace(/\D/g, '');
+
+        if (!selectedCustomerId || Number(amountValue) < 1000) {
+            pinApprovalStatus.textContent = 'Pilih nasabah dan masukkan jumlah penarikan minimal Rp 1.000.';
+            pinApprovalStatus.className = 'small text-danger';
+            return;
+        }
+
+        resetPinApproval('Mengirim permintaan PIN ke aplikasi nasabah...');
+        requestCustomerPin.disabled = true;
+
+        try {
+            const response = await fetch(customerPinGroup.dataset.createUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': transactionForm.querySelector('input[name="_token"]').value,
+                },
+                body: JSON.stringify({
+                    customer_id: selectedCustomerId,
+                    amount: amountValue,
+                }),
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Permintaan PIN gagal dikirim.');
+            }
+
+            const approvalId = result.data.id;
+            const statusUrl = customerPinGroup.dataset.statusUrl.replace('__APPROVAL_ID__', approvalId);
+            pinApprovalStatus.textContent = 'Menunggu nasabah memasukkan PIN di aplikasi. Permintaan berlaku 5 menit.';
+            pinApprovalStatus.className = 'small text-primary';
+
+            pinApprovalPoll = window.setInterval(async () => {
+                try {
+                    const statusResponse = await fetch(statusUrl, {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    const statusResult = await statusResponse.json();
+
+                    if (!statusResponse.ok || !statusResult.success) {
+                        throw new Error(statusResult.message || 'Status persetujuan PIN tidak dapat diperiksa.');
+                    }
+
+                    if (statusResult.data.status === 'approved') {
+                        window.clearInterval(pinApprovalPoll);
+                        pinApprovalPoll = null;
+                        pinApprovalId.value = approvalId;
+                        pinApprovalId.disabled = false;
+                        requestCustomerPin.disabled = true;
+                        requestCustomerPin.classList.add('d-none');
+                        pinApprovalStatus.textContent = 'PIN berhasil diverifikasi. Transaksi dapat disimpan.';
+                        pinApprovalStatus.className = 'small text-success fw-bold';
+                        saveTransactionButton.disabled = false;
+                    } else if (['expired', 'rejected', 'used'].includes(statusResult.data.status)) {
+                        window.clearInterval(pinApprovalPoll);
+                        pinApprovalPoll = null;
+                        resetPinApproval(statusResult.data.status === 'rejected'
+                            ? 'Nasabah menolak permintaan transaksi.'
+                            : 'Permintaan PIN kedaluwarsa. Silakan kirim permintaan baru.');
+                    }
+                } catch (error) {
+                    window.clearInterval(pinApprovalPoll);
+                    pinApprovalPoll = null;
+                    resetPinApproval(error.message || 'Gagal memeriksa status persetujuan PIN.');
+                }
+            }, 2000);
+        } catch (error) {
+            resetPinApproval(error.message || 'Permintaan PIN gagal dikirim. Coba lagi.');
+        }
+    });
+
+    customerSelect.addEventListener('change', function () {
+        resetPinApproval();
+        if (transactionType.value === 'penarikan') {
+            saveTransactionButton.disabled = true;
+        }
+    });
+
+    amount.addEventListener('input', function () {
+        if (pinApprovalId.value || pinApprovalPoll) {
+            resetPinApproval('Jumlah berubah. Minta persetujuan PIN yang baru.');
+            if (transactionType.value === 'penarikan') {
+                saveTransactionButton.disabled = true;
+            }
+        }
+    });
 
 
     // =========================
@@ -1343,6 +1451,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'change',
         function () {
             updateCustomerPinRequirement();
+            resetPinApproval();
             calculateBalance();
         }
     );
@@ -1361,6 +1470,13 @@ document.addEventListener('DOMContentLoaded', function () {
     );
 
     transactionForm.addEventListener('submit', function (event) {
+        if (transactionType.value === 'penarikan' && !pinApprovalId.value) {
+            event.preventDefault();
+            pinApprovalStatus.textContent = 'Minta dan tunggu persetujuan PIN nasabah sebelum menyimpan transaksi.';
+            pinApprovalStatus.className = 'small text-danger';
+            return;
+        }
+
         const selectedCustomer =
             customerSelect.options[customerSelect.selectedIndex];
         const transactionLabel =

@@ -109,9 +109,21 @@ class TellerTransactionPinTest extends TestCase
             $table->dateTime('used_at')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('withdrawal_pin_approvals', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('teller_id');
+            $table->decimal('amount', 12, 2);
+            $table->string('status')->default('pending');
+            $table->timestamp('expires_at');
+            $table->timestamp('approved_at')->nullable();
+            $table->timestamp('consumed_at')->nullable();
+            $table->timestamps();
+        });
     }
 
-    public function test_teller_must_enter_the_correct_six_digit_customer_pin_to_withdraw(): void
+    public function test_withdrawal_cannot_be_saved_without_customer_mobile_pin_approval(): void
     {
         [$teller, $customer] = $this->createTellerAndCustomer();
         $customer->update(['balance' => 20000]);
@@ -119,44 +131,80 @@ class TellerTransactionPinTest extends TestCase
         $this->actingAs($teller)
             ->post(route('transactions.store'), [
                 'customer_id' => $customer->id,
-                'customer_pin' => '111111',
                 'transaction_type' => 'penarikan',
                 'amount' => 1000,
             ])
-            ->assertSessionHasErrors('customer_pin')
-            ->assertSessionMissing('_old_input.customer_pin');
+            ->assertSessionHasErrors('pin_approval_id')
+            ->assertSessionMissing('_old_input.pin_approval_id');
 
         $this->assertDatabaseCount('transactions', 0);
         $this->assertEquals(20000, $customer->fresh()->balance);
     }
 
-    public function test_customer_pin_is_locked_after_ten_incorrect_withdrawal_attempts(): void
+    public function test_teller_can_create_customer_mobile_pin_approval_request(): void
     {
         [$teller, $customer] = $this->createTellerAndCustomer();
         $customer->update(['balance' => 20000]);
-        $this->actingAs($teller);
+        $this->actingAs($teller)
+            ->post(route('teller.daily-reports.opening-cash'), ['amount' => '5.000'])
+            ->assertSessionHas('success');
+        $this->approveCashRequest(CashAdvanceRequest::firstOrFail(), $teller);
 
-        for ($attempt = 0; $attempt < 10; $attempt++) {
-            $this->post(route('transactions.store'), [
+        $response = $this->actingAs($teller)
+            ->postJson(route('transactions.pin-approval.create'), [
                 'customer_id' => $customer->id,
-                'customer_pin' => '111111',
-                'transaction_type' => 'penarikan',
                 'amount' => 1000,
-            ]);
-        }
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('withdrawal_pin_approvals', [
+            'id' => $response->json('data.id'),
+            'customer_id' => $customer->id,
+            'teller_id' => $teller->id,
+            'amount' => 1000,
+            'status' => 'pending',
+        ]);
+
+        $approvalId = $response->json('data.id');
+        $this->actingAs($customer, 'sanctum')
+            ->postJson("/api/customer/withdrawal-pin-requests/{$approvalId}/verify", [
+                'pin' => '012345',
+            ])
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->actingAs($teller, 'web')
+            ->getJson(route('transactions.pin-approval.status', $approvalId))
+            ->assertOk()
+            ->assertJsonPath('data.status', 'approved');
 
         $this->post(route('transactions.store'), [
             'customer_id' => $customer->id,
-            'customer_pin' => '012345',
             'transaction_type' => 'penarikan',
             'amount' => 1000,
-        ])
-            ->assertSessionHasErrors([
-                'customer_pin' => 'Terlalu banyak percobaan PIN salah. Coba lagi dalam 30 menit.',
-            ]);
+            'pin_approval_id' => $approvalId,
+        ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
 
-        $this->assertDatabaseCount('transactions', 0);
-        $this->assertEquals(20000, $customer->fresh()->balance);
+        $this->assertDatabaseHas('withdrawal_pin_approvals', [
+            'id' => $approvalId,
+            'status' => 'approved',
+        ]);
+        $this->assertNotNull(
+            \App\Models\WithdrawalPinApproval::findOrFail($approvalId)->consumed_at
+        );
+        $this->assertEquals(19000, $customer->fresh()->balance);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'transaction_type' => 'penarikan',
+            'amount' => 1000,
+            'pin_approval_id' => $approvalId,
+        ])->assertSessionHas(
+            'error',
+            'Persetujuan PIN tidak valid atau kedaluwarsa. Minta verifikasi PIN nasabah kembali.'
+        );
+        $this->assertDatabaseCount('transactions', 1);
     }
 
     public function test_customer_pin_is_not_required_for_a_deposit(): void
@@ -200,7 +248,7 @@ class TellerTransactionPinTest extends TestCase
         $this->actingAs($teller)
             ->post(route('transactions.store'), [
                 'customer_id' => $customer->id,
-                'customer_pin' => '012345',
+                'pin_approval_id' => $this->createApprovedPinApproval($customer, $teller, 3000)->id,
                 'transaction_type' => 'penarikan',
                 'amount' => 3000,
             ])
@@ -222,7 +270,7 @@ class TellerTransactionPinTest extends TestCase
 
         $this->post(route('transactions.store'), [
             'customer_id' => $customer->id,
-            'customer_pin' => '012345',
+            'pin_approval_id' => $this->createApprovedPinApproval($customer, $teller, 6000)->id,
             'transaction_type' => 'penarikan',
             'amount' => 6000,
         ])->assertSessionHas(
@@ -233,7 +281,7 @@ class TellerTransactionPinTest extends TestCase
 
         $this->post(route('transactions.store'), [
             'customer_id' => $customer->id,
-            'customer_pin' => '012345',
+            'pin_approval_id' => $this->createApprovedPinApproval($customer, $teller, 3000)->id,
             'transaction_type' => 'penarikan',
             'amount' => 3000,
         ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
@@ -319,7 +367,7 @@ class TellerTransactionPinTest extends TestCase
 
         $this->post(route('transactions.store'), [
             'customer_id' => $customer->id,
-            'customer_pin' => '012345',
+            'pin_approval_id' => $this->createApprovedPinApproval($customer, $teller, 3000)->id,
             'transaction_type' => 'penarikan',
             'amount' => 3000,
         ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
@@ -404,7 +452,7 @@ class TellerTransactionPinTest extends TestCase
 
         $this->post(route('transactions.store'), [
                 'customer_id' => $customer->id,
-                'customer_pin' => '012345',
+                'pin_approval_id' => $this->createApprovedPinApproval($customer, $teller, 1000)->id,
                 'transaction_type' => 'penarikan',
                 'amount' => 1000,
             ])
@@ -462,18 +510,17 @@ class TellerTransactionPinTest extends TestCase
         $this->assertTrue(Hash::check('012345', $customer->pin));
     }
 
-    public function test_teller_transaction_form_requires_pin_only_for_withdrawals(): void
+    public function test_teller_transaction_form_requests_pin_approval_from_customer_mobile_app(): void
     {
         [$teller] = $this->createTellerAndCustomer();
 
         $this->actingAs($teller)
             ->get(route('transactions.create'))
             ->assertOk()
-            ->assertSee('name="customer_pin"', false)
-            ->assertSee('pattern="[0-9]{6}"', false)
-            ->assertSee('maxlength="6"', false)
-            ->assertSee('customerPin.required = withdrawalSelected', false)
-            ->assertSee('customerPin.disabled = !withdrawalSelected', false)
+            ->assertDontSee('name="customer_pin"', false)
+            ->assertSee('Minta PIN melalui Aplikasi Nasabah')
+            ->assertSee(route('transactions.pin-approval.create'), false)
+            ->assertSee('pinApprovalId.value = approvalId', false)
             ->assertSee(route('transactions.pin-reset.send'), false)
             ->assertSee(route('transactions.pin-reset.update'), false)
             ->assertSee('name="pin_confirmation"', false);
@@ -625,7 +672,7 @@ class TellerTransactionPinTest extends TestCase
         $this->assertNotNull($otp->fresh()->used_at);
     }
 
-    public function test_withdrawal_pin_must_be_six_digits_and_is_not_kept_in_old_input(): void
+    public function test_withdrawal_requires_pin_approval_and_does_not_keep_it_in_old_input(): void
     {
         [$teller, $customer] = $this->createTellerAndCustomer();
         $customer->update(['balance' => 20000]);
@@ -633,12 +680,11 @@ class TellerTransactionPinTest extends TestCase
         $this->actingAs($teller)
             ->post(route('transactions.store'), [
                 'customer_id' => $customer->id,
-                'customer_pin' => '12345',
                 'transaction_type' => 'penarikan',
                 'amount' => 1000,
             ])
-            ->assertSessionHasErrors('customer_pin')
-            ->assertSessionMissing('_old_input.customer_pin');
+            ->assertSessionHasErrors('pin_approval_id')
+            ->assertSessionMissing('_old_input.pin_approval_id');
 
         $this->assertDatabaseCount('transactions', 0);
     }
@@ -769,6 +815,18 @@ class TellerTransactionPinTest extends TestCase
         ]);
 
         return [$teller, $customer];
+    }
+
+    private function createApprovedPinApproval(Customer $customer, User $teller, int $amount): \App\Models\WithdrawalPinApproval
+    {
+        return \App\Models\WithdrawalPinApproval::create([
+            'customer_id' => $customer->id,
+            'teller_id' => $teller->id,
+            'amount' => $amount,
+            'status' => 'approved',
+            'expires_at' => now()->addMinutes(5),
+            'approved_at' => now(),
+        ]);
     }
 
     private function approveCashRequest(

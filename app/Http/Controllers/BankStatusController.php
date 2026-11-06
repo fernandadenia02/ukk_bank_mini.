@@ -9,10 +9,15 @@ class BankStatusController extends Controller
 {
     public function show()
     {
+        $isOpen = BankStatus::current()->is_open;
+
         return response()->json([
             'message' => 'Status bank berhasil diambil.',
             'data' => [
-                'is_open' => BankStatus::current()->is_open,
+                'is_open' => $isOpen,
+                'status' => $isOpen ? 'open' : 'closed',
+                'label' => $isOpen ? 'Bank Buka' : 'Bank Tutup',
+                'checked_at' => now()->toIso8601String(),
             ],
         ]);
     }

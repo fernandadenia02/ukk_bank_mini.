@@ -7,7 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerPinResetOtp;
 use App\Models\DailyReport;
 use App\Models\AccountingJournal;
-use App\Services\CredentialLockout;
+use App\Models\WithdrawalPinApproval;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -87,6 +87,86 @@ class TransactionController extends Controller
                 'selectedCustomer'
             )
         );
+    }
+
+    public function createWithdrawalPinApproval(Request $request)
+    {
+        $amountInput = $request->input('amount');
+        if (is_string($amountInput)) {
+            $request->merge([
+                'amount' => preg_replace('/[.,\s]/', '', $amountInput),
+            ]);
+        }
+
+        $validated = $request->validate([
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'amount' => ['required', 'numeric', 'min:1000', 'max:9999999999.99'],
+        ]);
+
+        $report = DailyReport::where('teller_id', Auth::id())
+            ->whereDate('date', today())
+            ->first();
+
+        if ($report?->closed_at) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kas harian sudah ditutup. Permintaan PIN tidak dapat dibuat.',
+            ], 422);
+        }
+
+        $customer = Customer::findOrFail($validated['customer_id']);
+        if ($customer->status !== 'aktif' || !$customer->pin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Nasabah tidak aktif atau belum memiliki PIN transaksi.',
+            ], 422);
+        }
+
+        WithdrawalPinApproval::where('customer_id', $customer->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'expired']);
+
+        $approval = WithdrawalPinApproval::create([
+            'customer_id' => $customer->id,
+            'teller_id' => Auth::id(),
+            'amount' => $validated['amount'],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(5),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permintaan PIN dikirim ke aplikasi nasabah.',
+            'data' => [
+                'id' => $approval->id,
+                'expires_at' => $approval->expires_at,
+            ],
+        ]);
+    }
+
+    public function withdrawalPinApprovalStatus(int $approvalId)
+    {
+        $approval = WithdrawalPinApproval::whereKey($approvalId)
+            ->where('teller_id', Auth::id())
+            ->firstOrFail();
+
+        if (
+            in_array($approval->status, ['pending', 'approved'], true) &&
+            $approval->expires_at->isPast() &&
+            !$approval->consumed_at
+        ) {
+            $approval->update(['status' => 'expired']);
+            $approval->refresh();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $approval->id,
+                'status' => $approval->status,
+                'expires_at' => $approval->expires_at,
+            ],
+        ]);
     }
 
     public function sendCustomerPinResetOtp(Request $request)
@@ -256,7 +336,7 @@ class TransactionController extends Controller
      * SIMPAN TRANSAKSI
      * =========================================================
      */
-    public function store(Request $request, CredentialLockout $lockout)
+    public function store(Request $request)
     {
         $amountInput = $request->input('amount');
         if (is_string($amountInput)) {
@@ -290,9 +370,10 @@ class TransactionController extends Controller
         ];
 
         if ($request->input('transaction_type') === 'penarikan') {
-            $rules['customer_pin'] = [
+            $rules['pin_approval_id'] = [
                 'required',
-                'digits:6',
+                'integer',
+                'exists:withdrawal_pin_approvals,id',
             ];
         }
 
@@ -301,7 +382,7 @@ class TransactionController extends Controller
         if ($validator->fails()) {
             return back()
                 ->withErrors($validator)
-                ->withInput($request->except('customer_pin'));
+                ->withInput($request->except(['customer_pin', 'pin_approval_id']));
         }
 
         $validated = $validator->validated();
@@ -322,21 +403,6 @@ class TransactionController extends Controller
                     'Silakan login terlebih dahulu.'
                 );
         }
-
-        $pinLockoutIdentifier = (string) $validated['customer_id'];
-
-        if ($validated['transaction_type'] === 'penarikan') {
-            $remaining = $lockout->remaining('customer-pin', $pinLockoutIdentifier);
-
-            if ($remaining > 0) {
-                return back()
-                    ->withErrors([
-                        'customer_pin' => $lockout->message('PIN', $remaining),
-                    ])
-                    ->withInput($request->except('customer_pin'));
-            }
-        }
-
 
         /**
          * =====================================================
@@ -360,7 +426,7 @@ class TransactionController extends Controller
                 DB::rollBack();
 
                 return back()
-                    ->withInput($request->except('customer_pin'))
+                    ->withInput($request->except(['customer_pin', 'pin_approval_id']))
                     ->with('error', 'Kas harian sudah ditutup. Transaksi tidak dapat diproses hari ini.');
             }
 
@@ -397,7 +463,7 @@ class TransactionController extends Controller
                     DB::rollBack();
 
                     return back()
-                        ->withInput($request->except('customer_pin'))
+                        ->withInput($request->except(['customer_pin', 'pin_approval_id']))
                         ->with('error', 'Customer belum aktif. Lakukan setoran minimal Rp 10.000 untuk aktivasi.');
                 }
 
@@ -405,29 +471,32 @@ class TransactionController extends Controller
                     DB::rollBack();
 
                     return back()
-                        ->withInput($request->except('customer_pin'))
+                        ->withInput($request->except(['customer_pin', 'pin_approval_id']))
                         ->with('error', 'Setoran pertama untuk aktivasi minimal Rp 10.000.');
                 }
             }
 
-            if (
-                $validated['transaction_type'] === 'penarikan' &&
-                !Hash::check($validated['customer_pin'], $customer->pin)
-            ) {
-                $remaining = $lockout->failedAttempt('customer-pin', $pinLockoutIdentifier);
-                DB::rollBack();
-
-                return back()
-                    ->withErrors([
-                        'customer_pin' => $remaining > 0
-                            ? $lockout->message('PIN', $remaining)
-                            : 'PIN nasabah salah. Transaksi tidak diproses.',
-                    ])
-                    ->withInput($request->except('customer_pin'));
-            }
-
+            $pinApproval = null;
             if ($validated['transaction_type'] === 'penarikan') {
-                $lockout->clear('customer-pin', $pinLockoutIdentifier);
+                $pinApproval = WithdrawalPinApproval::whereKey($validated['pin_approval_id'])
+                    ->where('teller_id', Auth::id())
+                    ->lockForUpdate()
+                    ->first();
+
+                if (
+                    !$pinApproval ||
+                    $pinApproval->status !== 'approved' ||
+                    $pinApproval->consumed_at ||
+                    $pinApproval->expires_at->isPast() ||
+                    (int) $pinApproval->customer_id !== (int) $customer->id ||
+                    (float) $pinApproval->amount !== (float) $validated['amount']
+                ) {
+                    DB::rollBack();
+
+                    return back()
+                        ->withInput($request->except(['customer_pin', 'pin_approval_id']))
+                        ->with('error', 'Persetujuan PIN tidak valid atau kedaluwarsa. Minta verifikasi PIN nasabah kembali.');
+                }
             }
 
 
@@ -455,7 +524,7 @@ class TransactionController extends Controller
                 DB::rollBack();
 
                 return back()
-                    ->withInput($request->except('customer_pin'))
+                    ->withInput($request->except(['customer_pin', 'pin_approval_id']))
                     ->with(
                         'error',
                         'Kas teller tidak mencukupi. Kas tersedia: Rp '
@@ -498,7 +567,7 @@ class TransactionController extends Controller
                     DB::rollBack();
 
                     return back()
-                        ->withInput($request->except('customer_pin'))
+                        ->withInput($request->except(['customer_pin', 'pin_approval_id']))
                         ->with(
                             'error',
                             'Transaksi ditolak. Saldo minimal yang harus tersisa adalah Rp 10.000.'
@@ -774,6 +843,10 @@ class TransactionController extends Controller
              * =================================================
              */
 
+            if ($pinApproval) {
+                $pinApproval->update(['consumed_at' => now()]);
+            }
+
             DB::commit();
 
 
@@ -799,7 +872,7 @@ class TransactionController extends Controller
 
 
             return back()
-                ->withInput($request->except('customer_pin'))
+                ->withInput($request->except(['customer_pin', 'pin_approval_id']))
                 ->with(
                     'error',
                     'Transaksi gagal disimpan: ' .

@@ -150,6 +150,12 @@ Route::middleware('auth')->group(function () {
 
     // KHUSUS TELLER
     Route::middleware('role:teller')->group(function () {
+        Route::post('/transactions/withdrawal-pin-requests', [TransactionController::class, 'createWithdrawalPinApproval'])
+            ->name('transactions.pin-approval.create');
+        Route::get('/transactions/withdrawal-pin-requests/{approvalId}', [TransactionController::class, 'withdrawalPinApprovalStatus'])
+            ->whereNumber('approvalId')
+            ->name('transactions.pin-approval.status');
+
         Route::post('/teller/bank-status', [DashboardController::class, 'updateBankStatus'])
             ->name('teller.bank-status.update');
 
