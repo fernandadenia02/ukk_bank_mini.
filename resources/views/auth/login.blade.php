@@ -75,8 +75,18 @@
                             class="login-password-toggle"
                             data-password-toggle
                             aria-label="Lihat kata sandi"
+                            aria-controls="password"
                             aria-pressed="false">
-                            Lihat
+                            <svg data-eye-visible viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg data-eye-hidden viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
+                                <path d="m3 3 18 18"></path>
+                                <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path>
+                                <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a14.8 14.8 0 0 1-3 3.8"></path>
+                                <path d="M6.6 6.6C3.6 8.5 2 12 2 12s3.6 7 10 7a10.7 10.7 0 0 0 4-.8"></path>
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -113,12 +123,20 @@
 <script>
     const passwordInput = document.getElementById('password');
     const passwordToggle = document.querySelector('[data-password-toggle]');
+    const visibleEye = passwordToggle?.querySelector('[data-eye-visible]');
+    const hiddenEye = passwordToggle?.querySelector('[data-eye-hidden]');
 
-    if (passwordInput instanceof HTMLInputElement && passwordToggle instanceof HTMLButtonElement) {
+    if (
+        passwordInput instanceof HTMLInputElement &&
+        passwordToggle instanceof HTMLButtonElement &&
+        visibleEye instanceof SVGElement &&
+        hiddenEye instanceof SVGElement
+    ) {
         passwordToggle.addEventListener('click', () => {
             const isVisible = passwordInput.type === 'text';
             passwordInput.type = isVisible ? 'password' : 'text';
-            passwordToggle.textContent = isVisible ? 'Lihat' : 'Sembunyikan';
+            visibleEye.style.display = isVisible ? 'block' : 'none';
+            hiddenEye.style.display = isVisible ? 'none' : 'block';
             passwordToggle.setAttribute('aria-label', isVisible ? 'Lihat kata sandi' : 'Sembunyikan kata sandi');
             passwordToggle.setAttribute('aria-pressed', String(!isVisible));
         });
