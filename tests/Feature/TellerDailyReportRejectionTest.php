@@ -210,4 +210,112 @@ class TellerDailyReportRejectionTest extends TestCase
             'rejection_reason' => 'Mohon koreksi laporan.',
         ]);
     }
+
+    public function test_rejected_report_for_today_can_be_corrected_and_resubmitted_for_review(): void
+    {
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+        $reportId = DB::table('daily_reports')->insertGetId([
+            'teller_id' => $teller->id,
+            'date' => today()->toDateString(),
+            'status' => 'pending',
+            'closed_at' => now(),
+            'physical_money' => 10000,
+            'ending_balance' => 10000,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('daily-reports.reject', $reportId), [
+                'rejection_reason' => 'Mohon koreksi uang fisik laporan.',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('daily_reports', [
+            'id' => $reportId,
+            'status' => 'rejected',
+            'closed_at' => null,
+            'rejection_reason' => 'Mohon koreksi uang fisik laporan.',
+        ]);
+
+        $this->actingAs($teller)
+            ->get(route('teller.dashboard'))
+            ->assertOk()
+            ->assertSee('Mohon koreksi uang fisik laporan.')
+            ->assertSee('Perbaiki uang fisik laporan')
+            ->assertSee('Ajukan Ulang Tutup Kas');
+
+        $this->post(route('teller.daily-reports.close'), [
+            'physical_money' => '9500',
+        ])
+            ->assertRedirect(route('teller.dashboard'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('daily_reports', [
+            'id' => $reportId,
+            'status' => 'pending',
+            'physical_money' => 9500,
+            'difference' => -500,
+            'rejection_reason' => null,
+            'supervisor_id' => null,
+        ]);
+        $this->assertNotNull(DB::table('daily_reports')->where('id', $reportId)->value('closed_at'));
+
+        $this->actingAs($admin)
+            ->post(route('daily-reports.approve', $reportId))
+            ->assertSessionHas('success', 'Daily Report berhasil disetujui.');
+
+        $this->assertDatabaseHas('daily_reports', [
+            'id' => $reportId,
+            'status' => 'approved',
+            'closed_at' => DB::table('daily_reports')->where('id', $reportId)->value('closed_at'),
+        ]);
+    }
+
+    public function test_rejecting_previous_day_report_does_not_reopen_its_cash(): void
+    {
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+        $teller = User::create([
+            'officer_name' => 'Teller',
+            'username' => 'teller',
+            'password' => 'password',
+            'role' => 'teller',
+            'status' => 'aktif',
+        ]);
+        $closedAt = now()->subDay();
+        $reportId = DB::table('daily_reports')->insertGetId([
+            'teller_id' => $teller->id,
+            'date' => today()->subDay()->toDateString(),
+            'status' => 'pending',
+            'closed_at' => $closedAt,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('daily-reports.reject', $reportId), [
+                'rejection_reason' => 'Mohon koreksi laporan sebelumnya.',
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame(
+            $closedAt->toDateTimeString(),
+            DB::table('daily_reports')->where('id', $reportId)->value('closed_at')
+        );
+    }
 }

@@ -75,6 +75,7 @@ class TellerTransactionPinTest extends TestCase
             $table->string('status');
             $table->timestamp('approved_at')->nullable();
             $table->timestamp('closed_at')->nullable();
+            $table->text('rejection_reason')->nullable();
         });
 
         Schema::create('cash_advance_requests', function (Blueprint $table): void {
@@ -677,10 +678,47 @@ class TellerTransactionPinTest extends TestCase
             'amount' => 1000,
         ])
             ->assertSessionHas('error', 'Kas harian sudah ditutup. Transaksi tidak dapat diproses hari ini.');
+    }
+
+    public function test_teller_can_transact_while_today_report_is_rejected_and_reopened(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        \App\Models\DailyReport::create([
+            'teller_id' => $teller->id,
+            'date' => today()->toDateString(),
+            'beginning_balance' => 0,
+            'total_deposit' => 0,
+            'total_withdrawals' => 0,
+            'ending_balance' => 0,
+            'physical_money' => 0,
+            'difference' => 0,
+            'status' => 'rejected',
+            'rejection_reason' => 'Mohon perbaiki laporan.',
+        ]);
+
+        $this->actingAs($teller)
+            ->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'transaction_type' => 'setoran',
+                'amount' => 1000,
+            ])
+            ->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
+
+        $this->assertDatabaseHas('transactions', [
+            'customer_id' => $customer->id,
+            'teller_id' => $teller->id,
+            'transaction_type' => 'setoran',
+            'amount' => 1000,
+        ]);
+        $this->assertDatabaseHas('daily_reports', [
+            'teller_id' => $teller->id,
+            'status' => 'rejected',
+            'total_deposit' => 1000,
+            'rejection_reason' => 'Mohon perbaiki laporan.',
+        ]);
 
         $this->get(route('transactions.create'))
-            ->assertRedirect(route('teller.dashboard'))
-            ->assertSessionHas('error', 'Kas harian sudah ditutup. Transaksi baru tidak dapat dibuat hari ini.');
+            ->assertOk();
         $this->assertDatabaseCount('transactions', 1);
     }
 

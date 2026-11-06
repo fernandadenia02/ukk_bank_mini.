@@ -46,7 +46,10 @@ class CashAdvanceRequestController extends Controller
                 ]);
             }
 
-            if ($report->closed_at || $report->status !== 'pending') {
+            if (
+                $report->closed_at ||
+                !in_array($report->status, ['pending', 'rejected'], true)
+            ) {
                 return 'Permintaan modal hanya dapat diajukan selama kas harian masih dibuka.';
             }
 
@@ -101,7 +104,10 @@ class CashAdvanceRequestController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($report->closed_at || $report->status !== 'pending') {
+            if (
+                $report->closed_at ||
+                !in_array($report->status, ['pending', 'rejected'], true)
+            ) {
                 return 'Kas harian sudah ditutup atau laporan sudah diproses.';
             }
 

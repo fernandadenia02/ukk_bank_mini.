@@ -52,7 +52,7 @@ class DailyReportController extends Controller
                 return 'Kas harian sudah ditutup.';
             }
 
-            if ($report->status !== 'pending') {
+            if (!in_array($report->status, ['pending', 'rejected'], true)) {
                 return 'Laporan kas ini sudah diproses dan tidak dapat ditutup kembali.';
             }
 
@@ -61,6 +61,10 @@ class DailyReportController extends Controller
                 'physical_money' => $physicalMoney,
                 'difference' => $physicalMoney - (float) $report->ending_balance,
                 'closed_at' => now(),
+                'status' => 'pending',
+                'supervisor_id' => null,
+                'approved_at' => null,
+                'rejection_reason' => null,
             ]);
 
             return null;
@@ -216,6 +220,7 @@ class DailyReportController extends Controller
                 'supervisor_id' => Auth::id(),
                 'approved_at' => now(),
                 'rejection_reason' => trim($validated['rejection_reason']),
+                'closed_at' => $report->date->isToday() ? null : $report->closed_at,
             ]);
 
             return null;

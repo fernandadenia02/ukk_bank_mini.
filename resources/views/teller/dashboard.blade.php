@@ -625,7 +625,7 @@
                 </div>
 
                 <hr>
-                @if(!$dailyReport->closed_at && $dailyReport->status === 'pending')
+                @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
                     @if($dailyReport->ending_balance <= 0 && !$cashAdvanceRequests->contains('status', 'pending'))
                         <form action="{{ route('teller.daily-reports.opening-cash') }}" method="POST"
                             class="row g-2 align-items-end mb-3">
@@ -704,13 +704,15 @@
                             <span class="badge bg-danger text-white">Belum ditutup</span>
                         @endif
                     </div>
-                    @if(!$dailyReport->closed_at && $dailyReport->status === 'pending')
+                    @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
                         <form action="{{ route('teller.daily-reports.close') }}" method="POST"
                             class="d-flex flex-wrap align-items-end gap-2"
-                            onsubmit="return confirm('Tutup kas harian? Setelah ditutup transaksi hari ini tidak dapat diproses lagi.')">
+                            onsubmit="return confirm('Ajukan tutup kas harian? Transaksi akan dikunci sampai laporan ditolak atau disetujui admin.')">
                             @csrf
                             <div>
-                                <label for="physical_money" class="form-label mb-1">Uang fisik saat tutup kas</label>
+                                <label for="physical_money" class="form-label mb-1">
+                                    {{ $dailyReport->status === 'rejected' ? 'Perbaiki uang fisik laporan' : 'Uang fisik saat tutup kas' }}
+                                </label>
                                 <div class="input-group">
                                     <span class="input-group-text">Rp</span>
                                     <input type="text" id="physical_money" name="physical_money"
@@ -719,7 +721,9 @@
                                         required>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-danger">Tutup Kas Harian</button>
+                            <button type="submit" class="btn btn-danger">
+                                {{ $dailyReport->status === 'rejected' ? 'Ajukan Ulang Tutup Kas' : 'Tutup Kas Harian' }}
+                            </button>
                         </form>
                     @endif
                 </div>
