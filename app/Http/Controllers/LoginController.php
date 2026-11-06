@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Customer;
+use App\Services\CredentialLockout;
 use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
@@ -20,12 +21,21 @@ class LoginController extends Controller
     /**
      * Proses login
      */
-    public function authenticate(Request $request)
+    public function authenticate(Request $request, CredentialLockout $lockout)
     {
         $request->validate([
             'username' => 'required',
             'password' => 'required',
         ]);
+
+        $username = mb_strtolower(trim((string) $request->input('username')));
+        $remaining = $lockout->remaining('login', $username);
+
+        if ($remaining > 0) {
+            return back()
+                ->with('error', $lockout->message('kata sandi', $remaining))
+                ->withInput($request->only('username'));
+        }
 
         $credentials = [
             'username' => $request->username,
@@ -46,15 +56,24 @@ class LoginController extends Controller
                 !$customer->password ||
                 !Hash::check($request->password, $customer->password)
             ) {
+                $remaining = $lockout->failedAttempt('login', $username);
+
+                if ($remaining > 0) {
+                    return back()
+                        ->with('error', $lockout->message('kata sandi', $remaining))
+                        ->withInput($request->only('username'));
+                }
+
                 return back()
                     ->with('error', 'Username atau password salah.')
-                    ->withInput();
+                    ->withInput($request->only('username'));
             }
 
             Auth::guard('customer')->login($customer);
             $guard = 'customer';
         }
 
+        $lockout->clear('login', $username);
         $request->session()->regenerate();
 
         $user = Auth::guard($guard)->user();

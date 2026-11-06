@@ -61,14 +61,24 @@
                         <label for="password" class="form-label">Kata Sandi</label>
                         <a href="{{ route('password.request') }}">Lupa kata sandi?</a>
                     </div>
-                    <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        class="form-control login-input"
-                        placeholder="Masukkan kata sandi"
-                        autocomplete="current-password"
-                        required>
+                    <div class="login-password-input">
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            class="form-control login-input"
+                            placeholder="Masukkan kata sandi"
+                            autocomplete="current-password"
+                            required>
+                        <button
+                            type="button"
+                            class="login-password-toggle"
+                            data-password-toggle
+                            aria-label="Lihat kata sandi"
+                            aria-pressed="false">
+                            Lihat
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn login-submit w-100">
@@ -99,5 +109,20 @@
         </footer>
     </section>
 </main>
+
+<script>
+    const passwordInput = document.getElementById('password');
+    const passwordToggle = document.querySelector('[data-password-toggle]');
+
+    if (passwordInput instanceof HTMLInputElement && passwordToggle instanceof HTMLButtonElement) {
+        passwordToggle.addEventListener('click', () => {
+            const isVisible = passwordInput.type === 'text';
+            passwordInput.type = isVisible ? 'password' : 'text';
+            passwordToggle.textContent = isVisible ? 'Lihat' : 'Sembunyikan';
+            passwordToggle.setAttribute('aria-label', isVisible ? 'Lihat kata sandi' : 'Sembunyikan kata sandi');
+            passwordToggle.setAttribute('aria-pressed', String(!isVisible));
+        });
+    }
+</script>
 
 @endsection

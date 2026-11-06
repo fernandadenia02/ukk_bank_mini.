@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -21,6 +22,14 @@ class LoginRedirectTest extends TestCase
             $table->string('role');
             $table->string('status');
         });
+
+        Schema::create('customers', function (Blueprint $table): void {
+            $table->id();
+            $table->string('username')->unique();
+            $table->string('password')->nullable();
+            $table->string('status')->default('aktif');
+            $table->string('name')->nullable();
+        });
     }
 
     public function test_guest_can_view_login_form(): void
@@ -35,6 +44,8 @@ class LoginRedirectTest extends TestCase
             ->assertSee('Akses layanan tabungan secara mandiri melalui aplikasi nasabah.')
             ->assertDontSee('Flutter')
             ->assertSee('Masuk ke Sistem')
+            ->assertSee('data-password-toggle', false)
+            ->assertSee('aria-label="Lihat kata sandi"', false)
             ->assertSee('https://bank-mini-fernanda.web.id/downloads/app-release.apk', false)
             ->assertSee('Logo SMK Negeri 1 Bantul')
             ->assertSee('/images/logo-smkn-1-bantul.png', false)
@@ -44,6 +55,38 @@ class LoginRedirectTest extends TestCase
         $html = $response->getContent();
         $this->assertLessThan(strpos($html, '<body'), strpos($html, '/css/login.css'));
         $this->assertFileExists(public_path('images/logo-smkn-1-bantul.png'));
+    }
+
+    public function test_password_login_is_locked_after_ten_failures_and_unlocked_after_thirty_minutes(): void
+    {
+        $user = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => Hash::make('correct-password'),
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $this->post(route('login.authenticate'), [
+                'username' => $user->username,
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        $this->post(route('login.authenticate'), [
+            'username' => $user->username,
+            'password' => 'correct-password',
+        ])
+            ->assertRedirect('/')
+            ->assertSessionHas('error', 'Terlalu banyak percobaan kata sandi salah. Coba lagi dalam 30 menit.');
+
+        $this->travel(30)->minutes();
+
+        $this->post(route('login.authenticate'), [
+            'username' => $user->username,
+            'password' => 'correct-password',
+        ])->assertRedirect(route('admin.dashboard'));
     }
 
     public function test_authenticated_teller_is_redirected_from_login_to_their_dashboard(): void

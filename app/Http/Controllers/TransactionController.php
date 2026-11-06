@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerPinResetOtp;
 use App\Models\DailyReport;
 use App\Models\AccountingJournal;
+use App\Services\CredentialLockout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -255,7 +256,7 @@ class TransactionController extends Controller
      * SIMPAN TRANSAKSI
      * =========================================================
      */
-    public function store(Request $request)
+    public function store(Request $request, CredentialLockout $lockout)
     {
         $amountInput = $request->input('amount');
         if (is_string($amountInput)) {
@@ -320,6 +321,20 @@ class TransactionController extends Controller
                     'error',
                     'Silakan login terlebih dahulu.'
                 );
+        }
+
+        $pinLockoutIdentifier = (string) $validated['customer_id'];
+
+        if ($validated['transaction_type'] === 'penarikan') {
+            $remaining = $lockout->remaining('customer-pin', $pinLockoutIdentifier);
+
+            if ($remaining > 0) {
+                return back()
+                    ->withErrors([
+                        'customer_pin' => $lockout->message('PIN', $remaining),
+                    ])
+                    ->withInput($request->except('customer_pin'));
+            }
         }
 
 
@@ -399,13 +414,20 @@ class TransactionController extends Controller
                 $validated['transaction_type'] === 'penarikan' &&
                 !Hash::check($validated['customer_pin'], $customer->pin)
             ) {
+                $remaining = $lockout->failedAttempt('customer-pin', $pinLockoutIdentifier);
                 DB::rollBack();
 
                 return back()
                     ->withErrors([
-                        'customer_pin' => 'PIN nasabah salah. Transaksi tidak diproses.',
+                        'customer_pin' => $remaining > 0
+                            ? $lockout->message('PIN', $remaining)
+                            : 'PIN nasabah salah. Transaksi tidak diproses.',
                     ])
                     ->withInput($request->except('customer_pin'));
+            }
+
+            if ($validated['transaction_type'] === 'penarikan') {
+                $lockout->clear('customer-pin', $pinLockoutIdentifier);
             }
 
 

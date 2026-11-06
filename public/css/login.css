@@ -102,6 +102,33 @@ body:has(.login-page) {
     font-size: 0.95rem;
 }
 
+.login-password-input {
+    position: relative;
+}
+
+.login-password-input .login-input {
+    padding-right: 5.5rem;
+}
+
+.login-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    padding: 4px 2px;
+    transform: translateY(-50%);
+    border: 0;
+    color: #5146de;
+    background: transparent;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.login-password-toggle:focus-visible {
+    border-radius: 4px;
+    outline: 2px solid #786ff0;
+    outline-offset: 2px;
+}
+
 .login-input:focus {
     border-color: #786ff0;
     background: #fff;

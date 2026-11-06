@@ -129,6 +129,35 @@ class TellerTransactionPinTest extends TestCase
         $this->assertEquals(20000, $customer->fresh()->balance);
     }
 
+    public function test_customer_pin_is_locked_after_ten_incorrect_withdrawal_attempts(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 20000]);
+        $this->actingAs($teller);
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $this->post(route('transactions.store'), [
+                'customer_id' => $customer->id,
+                'customer_pin' => '111111',
+                'transaction_type' => 'penarikan',
+                'amount' => 1000,
+            ]);
+        }
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'customer_pin' => '012345',
+            'transaction_type' => 'penarikan',
+            'amount' => 1000,
+        ])
+            ->assertSessionHasErrors([
+                'customer_pin' => 'Terlalu banyak percobaan PIN salah. Coba lagi dalam 30 menit.',
+            ]);
+
+        $this->assertDatabaseCount('transactions', 0);
+        $this->assertEquals(20000, $customer->fresh()->balance);
+    }
+
     public function test_customer_pin_is_not_required_for_a_deposit(): void
     {
         [$teller, $customer] = $this->createTellerAndCustomer();
