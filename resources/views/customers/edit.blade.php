@@ -1,3 +1,4 @@
+{{-- Formulir untuk memperbarui data profil dan rekening nasabah. --}}
 @extends('layouts.app')
 
 @section('title','Edit Customer')

@@ -1,3 +1,4 @@
+/* Layout and interaction styles for the staff login page. */
 body:has(.login-page) {
     min-height: 100vh;
     background:

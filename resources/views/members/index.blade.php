@@ -1,3 +1,4 @@
+{{-- Daftar calon nasabah serta fasilitas impor data anggota. --}}
 @extends('layouts.app')
 
 @section('title', 'Anggota')

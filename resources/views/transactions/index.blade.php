@@ -1,3 +1,4 @@
+{{-- Riwayat transaksi nasabah beserta akses untuk membuat transaksi baru. --}}
 @extends('layouts.app')
 
 @section('title', 'Transactions')

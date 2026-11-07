@@ -1,3 +1,4 @@
+{{-- Formulir untuk menambahkan data rekening nasabah baru. --}}
 @extends('layouts.app')
 
 @section('title', 'Create Customer')

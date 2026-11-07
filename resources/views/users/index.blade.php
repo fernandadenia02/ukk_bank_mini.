@@ -1,3 +1,4 @@
+{{-- Daftar akun pengguna untuk melihat dan mengelola akses aplikasi. --}}
 @extends('layouts.app')
 
 @section('title', 'Users')

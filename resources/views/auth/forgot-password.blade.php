@@ -1,3 +1,4 @@
+{{-- Formulir untuk meminta kode OTP pemulihan akun melalui email terdaftar. --}}
 @extends('layouts.auth')
 
 @section('title', 'Lupa Password')

@@ -11,7 +11,7 @@
     <title>Bukti Transaksi #{{ $transaction->id }}</title>
 
     <style>
-
+        /* Screen and print layout styles for the transaction receipt. */
         body {
             font-family: Arial, sans-serif;
             background: #f2f2f2;
@@ -331,7 +331,7 @@
             onclick="window.print()"
             class="btn btn-print"
         >
-            🖨 Cetak Bukti
+             Cetak Bukti
         </button>
 
 

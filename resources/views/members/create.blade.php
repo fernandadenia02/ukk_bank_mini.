@@ -1,3 +1,4 @@
+{{-- Formulir untuk mendaftarkan data calon nasabah/anggota. --}}
 @extends('layouts.app')
 
 @section('title', 'Add Anggota')

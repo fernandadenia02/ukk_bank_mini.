@@ -1,3 +1,4 @@
+{{-- Menampilkan rincian profil, rekening, dan saldo nasabah. --}}
 @extends('layouts.app')
 
 @section('title', 'Detail Customer')

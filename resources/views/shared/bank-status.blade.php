@@ -1,3 +1,4 @@
+{{-- Menampilkan status buka/tutup bank dan kontrol perubahan status jika diizinkan. --}}
 <div class="card shadow-sm mb-4">
     <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2" role="status" aria-live="polite">

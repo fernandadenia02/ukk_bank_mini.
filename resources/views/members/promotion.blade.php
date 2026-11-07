@@ -1,3 +1,4 @@
+{{-- Formulir pemrosesan kenaikan kelas anggota dan pengecualian siswa yang tetap. --}}
 @extends('layouts.app')
 
 @section('title', 'Naik Kelas')

@@ -1,3 +1,4 @@
+{{-- Formulir pembukaan rekening anggota dengan pengisian data akses dan setoran awal. --}}
 @extends('layouts.app')
 
 @section('title', 'Buat Rekening')

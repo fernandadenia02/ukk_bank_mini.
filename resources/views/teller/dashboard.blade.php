@@ -391,6 +391,7 @@
 
     </div>
 
+    {{-- Daftar rekening nasabah yang belum aktif dan langkah untuk mengaktifkannya melalui setoran awal. --}}
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-danger text-white">
             <h5 class="mb-0">
@@ -455,6 +456,7 @@
     {{-- INFORMASI DAILY REPORT --}}
     {{-- ================================================= --}}
 
+    {{-- Menampilkan catatan dan alasan laporan harian yang ditolak admin. --}}
     @if($rejectedReports->isNotEmpty())
         <div class="card shadow-sm border-danger mb-4">
             <div class="card-header bg-danger text-white">
@@ -485,8 +487,10 @@
         </div>
     @endif
 
+    {{-- Ringkasan laporan harian teller, termasuk saldo kas, status, dan pesan hasil proses. --}}
     @if($dailyReport)
 
+        {{-- Notifikasi hasil aksi dan validasi formulir pada halaman dashboard. --}}
         @if(session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
@@ -518,6 +522,7 @@
 
             <div class="card-body">
 
+                {{-- Ringkasan modal awal, setoran, penarikan, saldo akhir, dan status laporan harian. --}}
                 <div class="row">
 
                     <div class="col-md">
@@ -625,6 +630,7 @@
                 </div>
 
                 <hr>
+                {{-- Form permintaan tambahan modal kas saat kas tidak mencukupi untuk operasional. --}}
                 @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
                     @if($dailyReport->ending_balance <= 0 && !$cashAdvanceRequests->contains('status', 'pending'))
                         <form action="{{ route('teller.daily-reports.opening-cash') }}" method="POST"
@@ -652,6 +658,7 @@
                     @endif
                 @endif
 
+                {{-- Riwayat permintaan modal kas beserta status persetujuan dan catatan admin. --}}
                 @if($cashAdvanceRequests->isNotEmpty())
                     <div class="mb-3">
                         <strong>Riwayat Permintaan Modal Kas</strong>
@@ -691,6 +698,7 @@
                     </div>
                 @endif
 
+                {{-- Status kas dan formulir pencatatan uang fisik untuk mengajukan penutupan kas harian. --}}
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                     <div>
                         <strong>Status Kas:</strong>
@@ -745,6 +753,7 @@
 
 </div>
 
+{{-- Memformat input nominal modal dan uang fisik dengan pemisah ribuan. --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         ['opening_cash', 'physical_money'].forEach(function (inputId) {

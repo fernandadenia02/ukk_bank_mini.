@@ -5,6 +5,7 @@
 @section('content')
 
 <style>
+    /* Layout and responsive adjustments for transaction entry and QR scanning. */
     .transaction-page {
         max-width: 1000px;
         margin: 0 auto;

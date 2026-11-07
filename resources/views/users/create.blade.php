@@ -1,3 +1,4 @@
+{{-- Formulir pembuatan akun pengguna dan penentuan perannya. --}}
 @extends('layouts.app')
 
 @section('title', 'Create User')

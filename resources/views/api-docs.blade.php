@@ -7,6 +7,7 @@
     <title>Bank Mini API Documentation</title>
 
     <style>
+        /* Layout and presentation styles for the API documentation page. */
         * {
             box-sizing: border-box;
         }

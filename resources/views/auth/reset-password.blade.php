@@ -1,3 +1,4 @@
+{{-- Formulir verifikasi OTP dan penggantian password akun. --}}
 @extends('layouts.auth')
 
 @section('title', 'Reset Password')

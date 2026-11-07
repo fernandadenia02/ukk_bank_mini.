@@ -1,3 +1,4 @@
+{{-- Halaman masuk petugas Bank Mini. --}}
 @extends('layouts.auth')
 
 @section('title', 'Masuk | Bank Mini Sekolah')

@@ -1,3 +1,4 @@
+{{-- Daftar laporan kas harian teller untuk ditinjau dan diproses oleh admin. --}}
 @extends('layouts.app')
 
 @section('title', 'Daily Reports')
@@ -5,6 +6,7 @@
 @section('content')
 
 <style>
+    /* Styling for the daily report list, status labels, and responsive table. */
     .daily-report-page {
         background: #eef3f7;
         border-radius: 0;

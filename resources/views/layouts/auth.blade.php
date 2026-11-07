@@ -1,3 +1,4 @@
+{{-- Kerangka halaman autentikasi dengan Bootstrap dan aset gaya aplikasi. --}}
 <!DOCTYPE html>
 <html lang="id">
 <head>

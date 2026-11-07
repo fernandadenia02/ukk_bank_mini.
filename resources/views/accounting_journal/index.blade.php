@@ -1,3 +1,4 @@
+{{-- Menampilkan jurnal akuntansi dengan filter akun dan rentang tanggal. --}}
 @extends('layouts.app')
 
 @section('title','Accounting Journal')

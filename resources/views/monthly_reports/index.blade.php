@@ -1,3 +1,4 @@
+{{-- Rekap bulanan transaksi dan status laporan harian berdasarkan periode pilihan. --}}
 @extends('layouts.app')
 
 @section('title', 'Laporan Bulanan')
@@ -205,6 +206,7 @@
 </div>
 
 <style>
+    /* Hide navigation and controls and simplify cards when printing the monthly report. */
     @media print {
         nav, aside, .sidebar, .btn, form {
             display: none !important;

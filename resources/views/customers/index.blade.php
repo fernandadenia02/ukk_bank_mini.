@@ -1,3 +1,4 @@
+{{-- Daftar nasabah aktif dan belum aktif beserta aksi pengelolaan rekening. --}}
 @extends('layouts.app')
 
 @section('title','Customers')
