@@ -257,12 +257,15 @@ public function teller(Request $request)
         ->whereDate('withdrawal_date', '<', today())
         ->update(['status' => 'expired']);
 
-    $withdrawalAppointments = WithdrawalAppointment::with('customer:id,name,account_number')
-        ->where('status', 'pending')
-        ->whereDate('withdrawal_date', '>=', today())
-        ->orderBy('withdrawal_date')
-        ->orderBy('created_at')
-        ->get();
+    $withdrawalAppointments = WithdrawalAppointment::with([
+        'customer:id,name,account_number',
+        'reviewer:id,officer_name',
+    ])
+        ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+        ->orderByDesc('withdrawal_date')
+        ->orderByDesc('created_at')
+        ->paginate(10, ['*'], 'appointment_page')
+        ->withQueryString();
 
 
     // ==========================

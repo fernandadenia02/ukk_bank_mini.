@@ -374,6 +374,28 @@ class TellerTransactionPinTest extends TestCase
         $this->assertDatabaseCount('transactions', 3);
     }
 
+    public function test_teller_dashboard_keeps_processed_withdrawal_appointments_in_the_history_table(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $appointment = WithdrawalAppointment::create([
+            'customer_id' => $customer->id,
+            'withdrawal_date' => today()->addDay()->toDateString(),
+            'amount' => 1500000,
+            'status' => 'approved',
+            'reviewed_by' => $teller->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->actingAs($teller)
+            ->get(route('teller.dashboard'))
+            ->assertOk()
+            ->assertSee('Riwayat Janji Penarikan')
+            ->assertSee($customer->name)
+            ->assertSee('Disetujui')
+            ->assertSee('Rp 1.500.000')
+            ->assertDontSee(route('teller.withdrawal-appointments.approve', $appointment->id));
+    }
+
     public function test_admin_daily_report_shows_teller_opening_cash_for_review(): void
     {
         $teller = User::create([
