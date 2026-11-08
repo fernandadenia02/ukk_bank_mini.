@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Transaction;
 use App\Models\DailyReport;
 use App\Models\CashAdvanceRequest;
+use App\Models\WithdrawalAppointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -252,6 +253,17 @@ public function teller(Request $request)
         ->orderBy('requested_at')
         ->get();
 
+    WithdrawalAppointment::where('status', 'pending')
+        ->whereDate('withdrawal_date', '<', today())
+        ->update(['status' => 'expired']);
+
+    $withdrawalAppointments = WithdrawalAppointment::with('customer:id,name,account_number')
+        ->where('status', 'pending')
+        ->whereDate('withdrawal_date', '>=', today())
+        ->orderBy('withdrawal_date')
+        ->orderBy('created_at')
+        ->get();
+
 
     // ==========================
     // SEARCH NASABAH
@@ -300,6 +312,7 @@ public function teller(Request $request)
             'totalWithdrawal',
             'dailyReport',
             'cashAdvanceRequests',
+            'withdrawalAppointments',
             'rejectedReports',
             'customers',
             'inactiveCustomers',

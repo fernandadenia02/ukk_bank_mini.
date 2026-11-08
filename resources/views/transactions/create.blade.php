@@ -531,6 +531,9 @@
                     data-status-url="{{ route('transactions.pin-approval.status', ['approvalId' => '__APPROVAL_ID__']) }}"
                     style="display:none;">
                     <input type="hidden" name="pin_approval_id" id="pin_approval_id" disabled>
+                    <div class="alert alert-info py-2 mb-2">
+                        Batas total penarikan nasabah adalah Rp 1.000.000 per hari. Penarikan lebih dari batas harus memiliki janji yang disetujui teller minimal H-1, sesuai tanggal dan nominal yang diajukan.
+                    </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
                         <button type="button" id="requestCustomerPin" class="btn btn-outline-primary">
                             Minta PIN melalui Aplikasi Nasabah

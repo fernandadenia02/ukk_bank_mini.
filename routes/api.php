@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CustomerPinRecoveryController;
 use App\Http\Controllers\BankStatusController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\WithdrawalAppointmentController;
 use App\Http\Controllers\Api\WithdrawalPinApprovalController;
 use App\Http\Controllers\ForgotPasswordController;
 
@@ -42,6 +43,9 @@ Route::prefix('customer')->group(function () {
             ->middleware('throttle:10,1');
 
         Route::get('/bank-status', [BankStatusController::class, 'show']);
+        Route::get('/withdrawal-appointments', [WithdrawalAppointmentController::class, 'index']);
+        Route::post('/withdrawal-appointments', [WithdrawalAppointmentController::class, 'store'])
+            ->middleware('throttle:10,1');
         Route::get('/withdrawal-pin-requests/pending', [WithdrawalPinApprovalController::class, 'pending']);
         Route::post('/withdrawal-pin-requests/{id}/verify', [WithdrawalPinApprovalController::class, 'verify'])
             ->whereNumber('id')

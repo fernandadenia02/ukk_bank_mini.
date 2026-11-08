@@ -77,6 +77,19 @@ class TellerDailyReportRejectionTest extends TestCase
             $table->dateTime('reviewed_at')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('withdrawal_appointments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->date('withdrawal_date');
+            $table->decimal('amount', 12, 2);
+            $table->string('status')->default('pending');
+            $table->unsignedBigInteger('reviewed_by')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->text('rejection_reason')->nullable();
+            $table->timestamp('consumed_at')->nullable();
+            $table->timestamps();
+        });
     }
 
     public function test_teller_dashboard_shows_their_own_rejection_notes_from_previous_days(): void

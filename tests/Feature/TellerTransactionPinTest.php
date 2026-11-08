@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CashAdvanceRequest;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\WithdrawalAppointment;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -119,6 +120,19 @@ class TellerTransactionPinTest extends TestCase
             $table->timestamp('expires_at');
             $table->timestamp('approved_at')->nullable();
             $table->timestamp('consumed_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('withdrawal_appointments', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('customer_id');
+            $table->date('withdrawal_date');
+            $table->decimal('amount', 12, 2);
+            $table->string('status')->default('pending');
+            $table->unsignedBigInteger('reviewed_by')->nullable();
+            $table->dateTime('reviewed_at')->nullable();
+            $table->text('rejection_reason')->nullable();
+            $table->dateTime('consumed_at')->nullable();
             $table->timestamps();
         });
     }
@@ -298,6 +312,66 @@ class TellerTransactionPinTest extends TestCase
             'Permintaan modal tambahan hanya dapat diajukan saat kas tersedia sudah habis.'
         );
         $this->assertEquals(5000, $report->fresh()->beginning_balance);
+    }
+
+    public function test_customer_daily_withdrawal_limit_requires_an_approved_appointment_for_the_day(): void
+    {
+        [$teller, $customer] = $this->createTellerAndCustomer();
+        $customer->update(['balance' => 4100000]);
+
+        $this->actingAs($teller)->post(route('teller.daily-reports.opening-cash'), [
+            'amount' => '5.000.000',
+        ])->assertSessionHas('success');
+        $this->approveCashRequest(CashAdvanceRequest::firstOrFail(), $teller);
+
+        Transaction::create([
+            'customer_id' => $customer->id,
+            'teller_id' => $teller->id,
+            'transaction_type' => 'penarikan',
+            'amount' => 900000,
+            'beginning_balance' => 5000000,
+            'ending_balance' => 4100000,
+            'date' => now(),
+        ]);
+
+        $pinApproval = $this->createApprovedPinApproval($customer, $teller, 200000);
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'pin_approval_id' => $pinApproval->id,
+            'transaction_type' => 'penarikan',
+            'amount' => 200000,
+        ])->assertSessionHas('error', 'Batas penarikan harian nasabah adalah Rp 1.000.000. Penarikan lebih dari batas hanya dapat dilakukan sesuai janji yang sudah disetujui teller untuk hari ini.');
+
+        $this->assertDatabaseCount('transactions', 1);
+        $this->assertEquals(4100000, $customer->fresh()->balance);
+
+        $appointment = WithdrawalAppointment::create([
+            'customer_id' => $customer->id,
+            'withdrawal_date' => today()->toDateString(),
+            'amount' => 1500000,
+            'status' => 'approved',
+            'reviewed_by' => $teller->id,
+            'reviewed_at' => now(),
+        ]);
+
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'pin_approval_id' => $pinApproval->id,
+            'transaction_type' => 'penarikan',
+            'amount' => 200000,
+        ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
+
+        $secondPinApproval = $this->createApprovedPinApproval($customer, $teller, 400000);
+        $this->post(route('transactions.store'), [
+            'customer_id' => $customer->id,
+            'pin_approval_id' => $secondPinApproval->id,
+            'transaction_type' => 'penarikan',
+            'amount' => 400000,
+        ])->assertRedirect(route('transactions.receipt', Transaction::query()->max('id')));
+
+        $this->assertNotNull($appointment->fresh()->consumed_at);
+        $this->assertEquals(3500000, $customer->fresh()->balance);
+        $this->assertDatabaseCount('transactions', 3);
     }
 
     public function test_admin_daily_report_shows_teller_opening_cash_for_review(): void

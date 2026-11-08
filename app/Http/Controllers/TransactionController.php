@@ -8,6 +8,7 @@ use App\Models\CustomerPinResetOtp;
 use App\Models\DailyReport;
 use App\Models\AccountingJournal;
 use App\Models\WithdrawalPinApproval;
+use App\Models\WithdrawalAppointment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,8 @@ use Throwable;
 
 class TransactionController extends Controller
 {
+    private const DAILY_WITHDRAWAL_LIMIT = 1000000;
+
     /**
      * =========================================================
      * DAFTAR TRANSAKSI
@@ -477,6 +480,7 @@ class TransactionController extends Controller
             }
 
             $pinApproval = null;
+            $withdrawalAppointment = null;
             if ($validated['transaction_type'] === 'penarikan') {
                 $pinApproval = WithdrawalPinApproval::whereKey($validated['pin_approval_id'])
                     ->where('teller_id', Auth::id())
@@ -499,6 +503,37 @@ class TransactionController extends Controller
                 }
             }
 
+            $amount = (float) $validated['amount'];
+            $dailyWithdrawalTotal = 0;
+            if ($validated['transaction_type'] === 'penarikan') {
+                $dailyWithdrawalTotal = (float) Transaction::where('customer_id', $customer->id)
+                    ->where('transaction_type', 'penarikan')
+                    ->whereDate('date', today())
+                    ->sum('amount');
+
+                $newDailyWithdrawalTotal = $dailyWithdrawalTotal + $amount;
+                if ($newDailyWithdrawalTotal > self::DAILY_WITHDRAWAL_LIMIT) {
+                    $withdrawalAppointment = WithdrawalAppointment::where('customer_id', $customer->id)
+                        ->whereDate('withdrawal_date', today())
+                        ->where('status', 'approved')
+                        ->whereNull('consumed_at')
+                        ->where('amount', '>=', $newDailyWithdrawalTotal)
+                        ->orderBy('amount')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $withdrawalAppointment) {
+                        DB::rollBack();
+
+                        return back()
+                            ->withInput($request->except(['customer_pin', 'pin_approval_id']))
+                            ->with(
+                                'error',
+                                'Batas penarikan harian nasabah adalah Rp 1.000.000. Penarikan lebih dari batas hanya dapat dilakukan sesuai janji yang sudah disetujui teller untuk hari ini.'
+                            );
+                    }
+                }
+            }
 
             /**
              * =================================================
@@ -514,8 +549,6 @@ class TransactionController extends Controller
              * JUMLAH TRANSAKSI
              * =================================================
              */
-
-            $amount = $validated['amount'];
 
             if (
                 $validated['transaction_type'] === 'penarikan' &&
@@ -635,6 +668,13 @@ class TransactionController extends Controller
                     now(),
 
             ]);
+
+            if (
+                $withdrawalAppointment &&
+                $dailyWithdrawalTotal + $amount >= (float) $withdrawalAppointment->amount
+            ) {
+                $withdrawalAppointment->update(['consumed_at' => now()]);
+            }
 
 
             /**

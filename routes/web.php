@@ -13,6 +13,7 @@ use App\Http\Controllers\AccountingJournalController;
 use App\Http\Controllers\MonthlyReportController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\CashAdvanceRequestController;
+use App\Http\Controllers\TellerWithdrawalAppointmentController;
 
 // API DOCUMENTATION
 Route::get('/api-docs', function () {
@@ -150,6 +151,13 @@ Route::middleware('auth')->group(function () {
 
     // KHUSUS TELLER
     Route::middleware('role:teller')->group(function () {
+        Route::post('/teller/withdrawal-appointments/{id}/approve', [TellerWithdrawalAppointmentController::class, 'approve'])
+            ->whereNumber('id')
+            ->name('teller.withdrawal-appointments.approve');
+        Route::post('/teller/withdrawal-appointments/{id}/reject', [TellerWithdrawalAppointmentController::class, 'reject'])
+            ->whereNumber('id')
+            ->name('teller.withdrawal-appointments.reject');
+
         Route::post('/transactions/withdrawal-pin-requests', [TransactionController::class, 'createWithdrawalPinApproval'])
             ->name('transactions.pin-approval.create');
         Route::get('/transactions/withdrawal-pin-requests/{approvalId}', [TransactionController::class, 'withdrawalPinApprovalStatus'])
