@@ -1,58 +1,220 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Aplikasi Bank Mini
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi web Bank Mini untuk mendukung kegiatan operasional bank mini sekolah: pengelolaan petugas dan nasabah, pembukaan rekening, transaksi, pencatatan harian, serta laporan. Aplikasi dibuat menggunakan Laravel dan menyediakan antarmuka web berbasis Blade serta API untuk kebutuhan nasabah.
 
-## About Laravel
+## Fitur aplikasi
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Admin
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Melihat dashboard admin.
+- Mengelola akun petugas dengan peran admin, teller, dan supervisor; mengaktifkan atau menonaktifkan akun.
+- Mengelola data nasabah.
+- Mengelola data anggota, mengimpor anggota dari berkas, dan mempromosikan anggota.
+- Menyetujui atau menolak permintaan uang kas awal dari teller.
+- Meninjau, menyetujui, atau menolak laporan harian teller.
+- Melihat jurnal akuntansi dan laporan bulanan, serta mengunduh laporan bulanan dalam PDF.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Teller
 
-## Learning Laravel
+- Melayani transaksi setoran dan penarikan serta mencetak bukti transaksi.
+- Memproses anggota menjadi nasabah dan membuka rekening.
+- Mengajukan kas awal dan menutup laporan harian.
+- Meninjau dan memproses janji penarikan tunai nasabah.
+- Mengubah status operasional bank.
+- Mengirim OTP untuk pemulihan PIN nasabah dan melihat status permintaan persetujuan PIN transaksi.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Supervisor
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- Melihat dashboard supervisor.
+- Melihat laporan harian teller dan detail laporan.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### Nasabah
 
-## Agentic Development
+- Melihat dashboard dan saldo.
+- Melihat barcode rekening dan riwayat transaksi.
+- Mengelola profil melalui API.
+- Memeriksa status bank, mengajukan janji penarikan, dan meminta persetujuan PIN penarikan melalui API.
+- Memulihkan PIN dan kata sandi dengan OTP.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Teknologi
 
-```bash
-composer require laravel/boost --dev
+- **Backend:** PHP 8.3 atau lebih baru, Laravel 13.
+- **Database:** SQLite sebagai konfigurasi awal; konfigurasi Laravel juga menyediakan koneksi MySQL/MariaDB.
+- **Frontend:** Blade, Vite 8, Tailwind CSS 4, dan JavaScript.
+- **API:** Laravel Sanctum.
+- **Pembuatan dokumen:** DomPDF untuk laporan PDF, PhpSpreadsheet untuk lembar kerja, dan Simple QrCode untuk barcode/QR.
 
-php artisan boost:install
+## Struktur proyek
+
+```text
+app/
+  Console/Commands/       Perintah Artisan aplikasi
+  Http/
+    Controllers/          Controller halaman web dan API
+    Middleware/           Middleware, termasuk pembatasan akses berdasarkan peran
+  Models/                 Model pengguna, nasabah, transaksi, laporan, dan data terkait
+  Services/               Layanan bersama, misalnya pengelolaan lockout kredensial
+database/
+  factories/              Factory data untuk pengujian
+  migrations/             Perubahan struktur database
+  seeders/                Seeder aplikasi
+public/                   Entry point dan aset publik/build
+resources/
+  css/                    Sumber stylesheet
+  js/                     Sumber JavaScript
+  views/                  Halaman Blade dan layout per peran
+routes/
+  web.php                 Halaman web dan tindakan berdasarkan peran
+  api.php                 Endpoint API nasabah
+tests/
+  Feature/                Pengujian alur fitur dan endpoint
+  Unit/                   Pengujian unit
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### Bagian utama aplikasi
 
-## Contributing
+- **Autentikasi dan akses:** login web untuk petugas/nasabah, logout, reset kata sandi, pemulihan OTP, status akun, dan middleware peran.
+- **Operasional teller:** transaksi, bukti transaksi, kas awal, laporan harian, pembukaan rekening, janji penarikan, dan status bank.
+- **Administrasi dan laporan:** data pengguna, nasabah, anggota, jurnal akuntansi, persetujuan laporan, serta laporan bulanan PDF.
+- **API nasabah:** autentikasi token Sanctum, profil, dashboard, saldo, barcode, transaksi, status bank, janji penarikan, persetujuan PIN, dan pemulihan PIN.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Model utama yang digunakan aplikasi mencakup `User`, `Customer`, `Member`, `Transaction`, `DailyReport`, `AccountingJournal`, `CashAdvanceRequest`, `BankStatus`, `WithdrawalAppointment`, dan `WithdrawalPinApproval`. Model OTP digunakan untuk proses pemulihan kredensial.
 
-## Code of Conduct
+## Persyaratan lokal
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Pastikan perangkat sudah memiliki:
 
-## Security Vulnerabilities
+1. **PHP 8.3+** dan ekstensi PHP yang dibutuhkan Laravel serta dependensi Composer. Untuk konfigurasi SQLite bawaan, aktifkan ekstensi `pdo_sqlite` dan `sqlite3`.
+2. **Composer 2**.
+3. **Node.js dan npm** yang kompatibel dengan Vite 8.
+4. **Git**, jika proyek akan diambil dari repositori.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Di Windows, Laragon dapat digunakan untuk menyediakan PHP, Node.js, dan terminal. Periksa versi yang aktif di terminal:
 
-## License
+```powershell
+php -v
+composer --version
+node --version
+npm --version
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Instalasi lokal (Windows/Laragon)
+
+Jalankan perintah berikut dari PowerShell atau terminal Laragon. Sesuaikan lokasi folder jika proyek berada di lokasi berbeda.
+
+### 1. Ambil proyek dan pasang dependensi PHP
+
+Jika proyek belum ada di komputer:
+
+```powershell
+cd C:\laragon\www
+git clone <URL-REPOSITORI> ukk_bank_mini
+cd C:\laragon\www\ukk_bank_mini
+```
+
+Jika folder proyek sudah tersedia, langsung masuk ke folder tersebut. Kemudian pasang dependensi dari lock file:
+
+```powershell
+composer install
+```
+
+### 2. Siapkan konfigurasi aplikasi
+
+Buat file `.env` dari contoh apabila belum tersedia, lalu buat kunci aplikasi:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+php artisan key:generate
+```
+
+Pengaturan `.env.example` menggunakan SQLite. Pastikan baris ini tetap aktif:
+
+```dotenv
+DB_CONNECTION=sqlite
+```
+
+Pada konfigurasi bawaan, Laravel memakai `database/database.sqlite`. Buat file tersebut hanya jika belum ada:
+
+```powershell
+if (-not (Test-Path database\database.sqlite)) {
+    New-Item -ItemType File database\database.sqlite | Out-Null
+}
+```
+
+> Jika ingin memakai MySQL/MariaDB, buat database terlebih dahulu lalu sesuaikan `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, dan `DB_PASSWORD` di `.env`. Pastikan ekstensi `pdo_mysql` aktif.
+
+### 3. Siapkan database
+
+Jalankan migrasi untuk membuat atau memperbarui tabel:
+
+```powershell
+php artisan migrate
+```
+
+Jangan gunakan `php artisan migrate:fresh` pada database yang berisi data penting karena perintah tersebut menghapus tabel dan data. Seeder bawaan tidak membuat akun operasional admin/teller/supervisor/nasabah yang siap dipakai; gunakan akun yang disediakan pengelola proyek atau siapkan akun sesuai kebijakan aplikasi. Jangan menganggap akun contoh sebagai akun operasional.
+
+### 4. Pasang dependensi frontend dan buat aset
+
+```powershell
+npm ci
+npm run build
+```
+
+`npm ci` memasang versi dependensi yang tercatat di `package-lock.json`. Jalankan `npm install` jika lock file tidak tersedia atau memang perlu diperbarui.
+
+### 5. Jalankan aplikasi
+
+Untuk pengembangan, jalankan:
+
+```powershell
+composer run dev
+```
+
+Perintah ini menjalankan server Laravel, worker antrean, log aplikasi, dan Vite secara bersamaan. Buka alamat yang ditampilkan oleh server—biasanya **http://127.0.0.1:8000**.
+
+Alternatifnya, jalankan server saja:
+
+```powershell
+php artisan serve
+```
+
+Dalam terminal terpisah, jalankan Vite agar perubahan CSS/JavaScript dimuat langsung:
+
+```powershell
+npm run dev
+```
+
+Halaman login tersedia di `/login`, sedangkan dokumentasi API dalam aplikasi tersedia di `/api-docs`.
+
+## Konfigurasi lokal tambahan
+
+- `.env.example` mengatur `MAIL_MAILER=log`; email/OTP yang dikirim melalui mailer Laravel pada pengembangan lokal dicatat ke log aplikasi, bukan dikirim ke alamat email sungguhan. Periksa `storage/logs/laravel.log`.
+- `QUEUE_CONNECTION=database`, `SESSION_DRIVER=database`, dan `CACHE_STORE=database` merupakan nilai bawaan. Pastikan migrasi telah dijalankan sebelum menggunakan fitur yang bergantung pada tabel terkait.
+- Simpan konfigurasi lokal dan kredensial hanya di `.env`. Jangan membagikan atau mengunggah file `.env`.
+- Jika konfigurasi lama masih tersimpan setelah perubahan `.env`, jalankan `php artisan config:clear`.
+
+## API nasabah
+
+Endpoint API didefinisikan di `routes/api.php` dan secara default menggunakan awalan `/api`. Endpoint yang tersedia meliputi:
+
+| Kelompok | Endpoint utama | Kegunaan |
+|---|---|---|
+| Autentikasi | `POST /api/customer/login`, `POST /api/customer/logout` | Login dan logout nasabah |
+| Pemulihan akun | `POST /api/customer/forgot-password`, `POST /api/customer/reset-password` | Pemulihan kata sandi dengan OTP |
+| Profil dan rekening | `GET/PUT /api/customer/profile`, `GET /api/customer/dashboard`, `GET /api/customer/balance`, `GET /api/customer/barcode` | Data profil, dashboard, saldo, dan barcode |
+| Transaksi | `GET /api/customer/transactions`, `GET /api/customer/transactions/{id}` | Riwayat dan detail transaksi |
+| Status bank dan penarikan | `GET /api/customer/bank-status`, `GET/POST /api/customer/withdrawal-appointments` | Status bank dan pengajuan janji penarikan |
+| Persetujuan PIN | `GET /api/customer/withdrawal-pin-requests/pending`, `POST /api/customer/withdrawal-pin-requests/{id}/verify`, `POST /api/customer/withdrawal-pin-requests/{id}/decline` | Melihat, memverifikasi, atau menolak permintaan PIN |
+| Pemulihan PIN | `POST /api/customer/forgot-pin`, `POST /api/customer/reset-pin` | Mengirim OTP dan memperbarui PIN |
+
+Kecuali endpoint login dan pemulihan kata sandi, endpoint nasabah menggunakan autentikasi `auth:sanctum`. Batas permintaan (throttle) juga diterapkan pada endpoint autentikasi, OTP, dan beberapa tindakan sensitif. Lihat halaman `/api-docs` atau `routes/api.php` untuk daftar dan detail terbaru.
+
+## Pengujian
+
+Jalankan seluruh pengujian PHPUnit/Laravel dengan:
+
+```powershell
+php artisan test
+```
+
+Test suite menggunakan SQLite in-memory sesuai konfigurasi `phpunit.xml`, sehingga pengujian tidak memerlukan database lokal terpisah.
