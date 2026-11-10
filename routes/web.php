@@ -123,6 +123,8 @@ Route::middleware('auth')->group(function () {
         // Jurnal akuntansi
         Route::get('/accounting-journal', [AccountingJournalController::class, 'index'])
             ->name('accounting-journal.index');
+        Route::get('/accounting-journal/pdf', [AccountingJournalController::class, 'pdf'])
+            ->name('accounting-journal.pdf');
 
         // Setujui dan tolak Daily Report
         Route::post('/daily-reports/{id}/approve', [DailyReportController::class, 'approve'])

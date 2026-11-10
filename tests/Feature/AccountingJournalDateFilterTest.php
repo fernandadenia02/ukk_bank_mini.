@@ -122,4 +122,75 @@ class AccountingJournalDateFilterTest extends TestCase
             ->assertDontSeeText('300')
             ->assertSeeText('Rp 100');
     }
+
+    public function test_admin_can_download_weekly_journal_pdf_for_monday_through_sunday(): void
+    {
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        DB::table('accounting_journal')->insert([
+            [
+                'account' => 'Kas',
+                'debit' => 100,
+                'credit' => 0,
+                'date' => '2026-10-11 23:59:59',
+            ],
+            [
+                'account' => 'Kas',
+                'debit' => 200,
+                'credit' => 0,
+                'date' => '2026-10-12 00:00:00',
+            ],
+            [
+                'account' => 'Kas',
+                'debit' => 300,
+                'credit' => 0,
+                'date' => '2026-10-18 23:59:59',
+            ],
+            [
+                'account' => 'Kas',
+                'debit' => 400,
+                'credit' => 0,
+                'date' => '2026-10-19 00:00:00',
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('accounting-journal.pdf', [
+                'period' => 'weekly',
+                'date' => '2026-10-14',
+            ]));
+
+        $response->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader(
+                'content-disposition',
+                'attachment; filename=jurnal-akuntansi-2026-10-12-2026-10-18.pdf'
+            );
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+    }
+
+    public function test_custom_journal_pdf_requires_a_valid_date_range(): void
+    {
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('accounting-journal.pdf', [
+                'period' => 'custom',
+                'date_from' => '2026-10-20',
+                'date_to' => '2026-10-10',
+            ]))
+            ->assertSessionHasErrors('date_to');
+    }
 }
