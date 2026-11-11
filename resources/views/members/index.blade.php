@@ -85,6 +85,7 @@
                 @else
                     <th>Nomor Rekening</th>
                     <th>Status Rekening</th>
+                    <th>Aksi</th>
                 @endif
             </tr>
         </thead>
@@ -116,11 +117,16 @@
                                 <span class="badge bg-danger text-white">Belum dibuka</span>
                             @endif
                         </td>
+                        <td>
+                            <a href="{{ route('members.edit', $member->id) }}" class="btn btn-warning btn-sm">
+                                Edit
+                            </a>
+                        </td>
                     @endif
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $forTeller ? 6 : 7 }}" class="text-center py-4">
+                    <td colspan="{{ $forTeller ? 6 : 8 }}" class="text-center py-4">
                         {{ $forTeller ? 'Tidak ada calon nasabah yang menunggu pembukaan rekening.' : 'Belum ada data anggota.' }}
                     </td>
                 </tr>

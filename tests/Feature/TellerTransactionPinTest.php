@@ -632,7 +632,17 @@ class TellerTransactionPinTest extends TestCase
             ->assertSee('type="text"', false)
             ->assertSee('inputmode="numeric"', false)
             ->assertSee("Number(amount.value.replace(/\\D/g, ''))", false)
-            ->assertSee("amount.value.replace(/\\D/g, '')", false);
+            ->assertSee("amount.value.replace(/\\D/g, '')", false)
+            ->assertSee('id="cashDenominationTable"', false)
+            ->assertSee('data-denomination="20000"', false)
+            ->assertSee('data-denomination="50000"', false)
+            ->assertSee('data-denomination="100000"', false)
+            ->assertSee('cash-denomination-quantity', false)
+            ->assertSee('id="uiConfirmModal"', false)
+            ->assertSee('window.showUiConfirm', false)
+            ->assertDontSee('window.confirm', false)
+            ->assertSee('Mengisi jumlah lembar akan memperbarui nominal transaksi.')
+            ->assertSee('Jika nominal diketik manual, jumlah lembar akan dikosongkan.');
 
         $this->post(route('transactions.store'), [
             'customer_id' => $customer->id,

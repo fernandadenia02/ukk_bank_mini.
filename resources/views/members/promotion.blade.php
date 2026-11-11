@@ -25,7 +25,9 @@
 @endif
 
 <form action="{{ route('members.promote') }}" method="POST"
-    onsubmit="return confirm('Lanjutkan proses naik kelas untuk semua siswa yang tidak dicentang?');">
+    data-ui-confirm-title="Konfirmasi kenaikan kelas"
+    data-ui-confirm="Lanjutkan proses naik kelas untuk semua siswa yang tidak dicentang?"
+    data-ui-confirm-accept="Naikkan kelas">
     @csrf
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

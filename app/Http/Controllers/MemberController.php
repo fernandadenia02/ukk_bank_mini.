@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -43,6 +44,50 @@ class MemberController extends Controller
         return redirect()
             ->route('members.index')
             ->with('success', 'Anggota berhasil ditambahkan.');
+    }
+
+    public function edit(int $id)
+    {
+        $member = Member::with('customer')->findOrFail($id);
+
+        return view('members.edit', compact('member'));
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $member = Member::with('customer')->findOrFail($id);
+        $customerUniqueRule = Rule::unique('customers', 'nis');
+
+        if ($member->customer) {
+            $customerUniqueRule->ignore($member->customer->id);
+        }
+
+        $validated = $request->validate([
+            'nis' => [
+                'required',
+                'string',
+                'max:30',
+                Rule::unique('members', 'nis')->ignore($member->id),
+                $customerUniqueRule,
+            ],
+            'name' => ['required', 'string', 'max:100'],
+            'class' => ['required', 'string', 'max:20'],
+            'location' => ['required', 'string'],
+        ]);
+
+        DB::transaction(function () use ($member, $validated): void {
+            $member->refresh();
+            $member->fill($validated);
+            $member->save();
+
+            if ($member->customer) {
+                $member->customer->update($validated);
+            }
+        });
+
+        return redirect()
+            ->route('members.index')
+            ->with('success', 'Data anggota berhasil diperbarui.');
     }
 
     public function index(Request $request)

@@ -426,21 +426,25 @@
                                 <td>Rp {{ number_format($cashRequest->report->ending_balance ?? 0, 0, ',', '.') }}</td>
                                 <td style="min-width: 250px;">
                                     <form action="{{ route('cash-advance-requests.approve', $cashRequest->id) }}"
-                                        method="POST" class="d-inline">
+                                        method="POST" class="d-inline"
+                                        data-ui-confirm-title="Persetujuan permintaan kas"
+                                        data-ui-confirm="Setujui permintaan modal kas ini?"
+                                        data-ui-confirm-accept="Setujui">
                                         @csrf
-                                        <button type="submit" class="btn btn-success btn-sm mb-2"
-                                            onclick="return confirm('Setujui permintaan modal kas ini?')">
+                                        <button type="submit" class="btn btn-success btn-sm mb-2">
                                             Approve
                                         </button>
                                     </form>
                                     <form action="{{ route('cash-advance-requests.reject', $cashRequest->id) }}"
-                                        method="POST">
+                                        method="POST"
+                                        data-ui-confirm-title="Penolakan permintaan kas"
+                                        data-ui-confirm="Tolak permintaan modal kas ini?"
+                                        data-ui-confirm-accept="Tolak">
                                         @csrf
                                         <textarea name="rejection_reason" class="form-control form-control-sm mb-2"
                                             rows="2" minlength="5" maxlength="2000"
                                             placeholder="Alasan reject..." required>{{ old('rejection_reason') }}</textarea>
-                                        <button type="submit" class="btn btn-danger btn-sm"
-                                            onclick="return confirm('Tolak permintaan modal kas ini?')">
+                                        <button type="submit" class="btn btn-danger btn-sm">
                                             Reject
                                         </button>
                                     </form>

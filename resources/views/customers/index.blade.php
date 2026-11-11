@@ -112,15 +112,17 @@
                 <form
                     action="{{ route('customers.status',$customer->id) }}"
                     method="POST"
-                    class="d-inline">
+                    class="d-inline"
+                    data-ui-confirm-title="Nonaktifkan nasabah"
+                    data-ui-confirm="Nonaktifkan customer ini?"
+                    data-ui-confirm-accept="Nonaktifkan">
 
                     @csrf
                     @method('PATCH')
 
                     <input type="hidden" name="status" value="nonaktif">
 
-                    <button class="btn btn-secondary btn-sm"
-                        onclick="return confirm('Nonaktifkan customer ini?')">
+                    <button class="btn btn-secondary btn-sm">
                         Deactivate
 
                     </button>
@@ -194,12 +196,14 @@
                     Edit
                 </a>
                 @if((float) $customer->balance >= 10000)
-                    <form action="{{ route('customers.status',$customer->id) }}" method="POST" class="d-inline">
+                    <form action="{{ route('customers.status',$customer->id) }}" method="POST" class="d-inline"
+                        data-ui-confirm-title="Aktifkan nasabah"
+                        data-ui-confirm="Aktifkan customer ini?"
+                        data-ui-confirm-accept="Aktifkan">
                         @csrf
                         @method('PATCH')
                         <input type="hidden" name="status" value="aktif">
-                        <button class="btn btn-success btn-sm"
-                            onclick="return confirm('Aktifkan customer ini?')">
+                        <button class="btn btn-success btn-sm">
                             Activate
                         </button>
                     </form>

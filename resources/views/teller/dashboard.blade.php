@@ -789,7 +789,9 @@
                     @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
                         <form action="{{ route('teller.daily-reports.close') }}" method="POST"
                             class="d-flex flex-wrap align-items-end gap-2"
-                            onsubmit="return confirm('Ajukan tutup kas harian? Transaksi akan dikunci sampai laporan ditolak atau disetujui admin.')">
+                            data-ui-confirm-title="Konfirmasi tutup kas"
+                            data-ui-confirm="Ajukan tutup kas harian? Transaksi akan dikunci sampai laporan ditolak atau disetujui admin."
+                            data-ui-confirm-accept="Tutup kas">
                             @csrf
                             <div>
                                 <label for="physical_money" class="form-label mb-1">

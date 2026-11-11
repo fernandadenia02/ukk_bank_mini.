@@ -511,17 +511,55 @@
                             inputmode="numeric"
                             pattern="[0-9.,]*"
                             autocomplete="off"
-                            placeholder="Enter amount"
+                            placeholder="Enter amount manually or use the denomination table"
                             required>
 
                     </div>
 
                     <small class="text-muted">
 
-                        Minimal transaksi Rp 1.000.
+                        Masukkan nominal manual, atau isi jumlah lembar uang pada tabel. Minimal transaksi Rp 1.000.
 
                     </small>
 
+                </div>
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm table-bordered align-middle mb-2" id="cashDenominationTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Pecahan</th>
+                                <th scope="col" style="width: 35%">Jumlah lembar</th>
+                                <th scope="col" class="text-end">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ([1000, 2000, 5000, 10000, 20000, 50000, 100000] as $denomination)
+                                <tr>
+                                    <th scope="row">Rp {{ number_format($denomination, 0, ',', '.') }}</th>
+                                    <td>
+                                        <input
+                                            type="number"
+                                            class="form-control form-control-sm cash-denomination-quantity"
+                                            data-denomination="{{ $denomination }}"
+                                            min="0"
+                                            step="1"
+                                            value="0"
+                                            inputmode="numeric"
+                                            aria-label="Jumlah lembar pecahan Rp {{ number_format($denomination, 0, ',', '.') }}">
+                                    </td>
+                                    <td class="text-end cash-denomination-subtotal">Rp 0</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light fw-bold">
+                                <th colspan="2" scope="row">Total pecahan</th>
+                                <td class="text-end" id="cashDenominationTotal">Rp 0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <small class="text-muted">Mengisi jumlah lembar akan memperbarui nominal transaksi. Jika nominal diketik manual, jumlah lembar akan dikosongkan.</small>
                 </div>
 
                 <div
@@ -864,6 +902,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let pinApprovalPoll = null;
 
+    let transactionConfirmationPending = false;
+
+    let transactionConfirmationApproved = false;
+
 
     // =========================
     // FORMAT RUPIAH
@@ -883,6 +925,52 @@ document.addEventListener('DOMContentLoaded', function () {
             ? Number(digits).toLocaleString('id-ID')
             : '';
     }
+
+    const denominationInputs = Array.from(
+        document.querySelectorAll('.cash-denomination-quantity')
+    );
+    const denominationTotal = document.getElementById('cashDenominationTotal');
+    let updatingAmountFromDenominations = false;
+
+    function updateDenominationSummary() {
+        let total = 0;
+
+        denominationInputs.forEach(function (input) {
+            const count = Math.max(0, Number.parseInt(input.value, 10) || 0);
+            const row = input.closest('tr');
+            const subtotal = count * Number(input.dataset.denomination);
+            total += subtotal;
+            row.querySelector('.cash-denomination-subtotal').textContent =
+                formatRupiah(subtotal);
+        });
+
+        denominationTotal.textContent = formatRupiah(total);
+
+        return total;
+    }
+
+    function clearDenominationCounts() {
+        denominationInputs.forEach(function (input) {
+            input.value = '0';
+        });
+        updateDenominationSummary();
+    }
+
+    denominationInputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            const total = updateDenominationSummary();
+            updatingAmountFromDenominations = true;
+            amount.value = formatAmountInput(String(total));
+            amount.dispatchEvent(new Event('input', { bubbles: true }));
+            updatingAmountFromDenominations = false;
+        });
+    });
+
+    amount.addEventListener('input', function () {
+        if (!updatingAmountFromDenominations) {
+            clearDenominationCounts();
+        }
+    });
 
 
     // =========================
@@ -1494,11 +1582,22 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     );
 
-    transactionForm.addEventListener('submit', function (event) {
+    transactionForm.addEventListener('submit', async function (event) {
         if (transactionType.value === 'penarikan' && !pinApprovalId.value) {
             event.preventDefault();
             pinApprovalStatus.textContent = 'Minta dan tunggu persetujuan PIN nasabah sebelum menyimpan transaksi.';
             pinApprovalStatus.className = 'small text-danger';
+            return;
+        }
+
+        if (transactionConfirmationApproved) {
+            transactionConfirmationApproved = false;
+            amount.value = amount.value.replace(/\D/g, '');
+            return;
+        }
+
+        event.preventDefault();
+        if (transactionConfirmationPending) {
             return;
         }
 
@@ -1509,17 +1608,31 @@ document.addEventListener('DOMContentLoaded', function () {
         const formattedAmount =
             formatRupiah(Number(amount.value.replace(/\D/g, '')) || 0);
         const confirmationMessage =
-            `Apakah Anda yakin ingin menyimpan transaksi ini?\n\n` +
-            `Jenis: ${transactionLabel}\n` +
-            `Nasabah: ${selectedCustomer.dataset.name}\n` +
-            `Jumlah: ${formattedAmount}`;
+            'Apakah Anda yakin ingin menyimpan transaksi ini?';
 
-        if (!window.confirm(confirmationMessage)) {
-            event.preventDefault();
+        transactionConfirmationPending = true;
+        const accepted = await window.showUiConfirm({
+            title: 'Konfirmasi transaksi',
+            message: confirmationMessage,
+            details: [
+                `Jenis: ${transactionLabel}`,
+                `Nasabah: ${selectedCustomer.dataset.name}`,
+                `Jumlah: ${formattedAmount}`,
+            ],
+            acceptText: 'Simpan transaksi',
+        });
+        transactionConfirmationPending = false;
+
+        if (!accepted) {
             return;
         }
 
-        amount.value = amount.value.replace(/\D/g, '');
+        transactionConfirmationApproved = true;
+        if (event.submitter) {
+            transactionForm.requestSubmit(event.submitter);
+        } else {
+            transactionForm.requestSubmit();
+        }
     });
 
 

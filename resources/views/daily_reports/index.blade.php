@@ -264,19 +264,25 @@
 
                         @if(auth()->user()->role === 'admin' && $report->status === 'pending' && $report->closed_at)
                             <div class="mt-3">
-                                <form action="{{ route('daily-reports.approve', $report->id) }}" method="POST" class="d-inline-block mb-2">
+                                <form action="{{ route('daily-reports.approve', $report->id) }}" method="POST" class="d-inline-block mb-2"
+                                    data-ui-confirm-title="Persetujuan laporan"
+                                    data-ui-confirm="Apakah Anda yakin ingin menyetujui laporan ini?"
+                                    data-ui-confirm-accept="Setujui">
                                     @csrf
-                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Apakah Anda yakin ingin menyetujui laporan ini?')">
+                                    <button type="submit" class="btn btn-success btn-sm">
                                         Approve
                                     </button>
                                 </form>
                             </div>
 
-                            <form action="{{ route('daily-reports.reject', $report->id) }}" method="POST" class="mt-2 text-start">
+                            <form action="{{ route('daily-reports.reject', $report->id) }}" method="POST" class="mt-2 text-start"
+                                data-ui-confirm-title="Penolakan laporan"
+                                data-ui-confirm="Yakin menolak laporan ini dengan alasan tersebut?"
+                                data-ui-confirm-accept="Tolak laporan">
                                 @csrf
                                 <label for="reason-{{ $report->id }}" class="form-label small mb-1">Alasan penolakan</label>
                                 <textarea id="reason-{{ $report->id }}" name="rejection_reason" class="form-control form-control-sm mb-2" rows="3" minlength="5" maxlength="2000" placeholder="Tuliskan alasan reject..." required>{{ old('rejection_reason') }}</textarea>
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Yakin menolak laporan ini dengan alasan tersebut?')">
+                                <button type="submit" class="btn btn-danger btn-sm">
                                     Reject
                                 </button>
                             </form>

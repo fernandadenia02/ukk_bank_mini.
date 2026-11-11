@@ -27,7 +27,11 @@
         </div>
 
         <form action="{{ route('teller.members.open', $member->id) }}" method="POST"
-            onsubmit="return confirm('Buka rekening dan catat setoran awal Rp ' + document.getElementById('opening_deposit').value + '?')">
+            data-ui-confirm-title="Konfirmasi pembukaan rekening"
+            data-ui-confirm="Buka rekening dan catat setoran awal?"
+            data-ui-confirm-value="#opening_deposit"
+            data-ui-confirm-value-label="Setoran awal"
+            data-ui-confirm-accept="Buka rekening">
             @csrf
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>

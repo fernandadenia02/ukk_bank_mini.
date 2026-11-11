@@ -193,6 +193,121 @@ class MemberWorkflowTest extends TestCase
         $this->assertDatabaseCount('customers', 0);
     }
 
+    public function test_admin_can_edit_member_and_sync_linked_customer_without_changing_account_data(): void
+    {
+        $admin = $this->createAdmin();
+        $customer = Customer::create([
+            'account_number' => '10000001',
+            'nis' => 'NIS-EDIT',
+            'name' => 'Original Member',
+            'username' => 'originalmember',
+            'email' => 'original@example.test',
+            'password' => 'old-password-hash',
+            'status' => 'aktif',
+            'class' => 'X',
+            'location' => 'Jakarta',
+            'telephone_number' => '081234567890',
+            'pin' => Hash::make('012345'),
+            'balance' => 25000,
+        ]);
+        $member = Member::create([
+            'nis' => 'NIS-EDIT',
+            'name' => 'Original Member',
+            'class' => 'X',
+            'location' => 'Jakarta',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('members.edit', $member->id))
+            ->assertOk()
+            ->assertSee('value="NIS-EDIT"', false)
+            ->assertSee('value="Original Member"', false);
+
+        $this->put(route('members.update', $member->id), [
+            'nis' => 'NIS-EDITED',
+            'name' => 'Updated Member',
+            'class' => 'XI RPL 1',
+            'location' => 'Bandung',
+        ])
+            ->assertRedirect(route('members.index'))
+            ->assertSessionHas('success', 'Data anggota berhasil diperbarui.');
+
+        $this->assertDatabaseHas('members', [
+            'id' => $member->id,
+            'nis' => 'NIS-EDITED',
+            'name' => 'Updated Member',
+            'class' => 'XI RPL 1',
+            'location' => 'Bandung',
+        ]);
+        $this->assertDatabaseHas('customers', [
+            'id' => $customer->id,
+            'nis' => 'NIS-EDITED',
+            'name' => 'Updated Member',
+            'class' => 'XI RPL 1',
+            'location' => 'Bandung',
+            'account_number' => '10000001',
+            'username' => 'originalmember',
+            'email' => 'original@example.test',
+            'status' => 'aktif',
+            'balance' => 25000,
+            'telephone_number' => '081234567890',
+        ]);
+    }
+
+    public function test_member_edit_rejects_an_nis_used_by_another_member_or_customer(): void
+    {
+        $admin = $this->createAdmin();
+        $member = Member::create([
+            'nis' => 'NIS-EDIT-1',
+            'name' => 'First Member',
+            'class' => 'X',
+            'location' => 'Jakarta',
+        ]);
+        Member::create([
+            'nis' => 'NIS-EDIT-2',
+            'name' => 'Second Member',
+            'class' => 'XI',
+            'location' => 'Bandung',
+        ]);
+        Customer::create([
+            'account_number' => '10000001',
+            'nis' => 'NIS-CUSTOMER',
+            'name' => 'Customer',
+            'username' => 'customer',
+            'email' => 'customer@example.test',
+            'password' => 'old-password-hash',
+            'status' => 'aktif',
+            'class' => 'XII',
+            'location' => 'Jakarta',
+            'telephone_number' => '081234567890',
+            'pin' => Hash::make('012345'),
+            'balance' => 0,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('members.update', $member->id), [
+                'nis' => 'NIS-EDIT-2',
+                'name' => 'Changed Member',
+                'class' => 'X',
+                'location' => 'Jakarta',
+            ])
+            ->assertSessionHasErrors('nis');
+
+        $this->put(route('members.update', $member->id), [
+            'nis' => 'NIS-CUSTOMER',
+            'name' => 'Changed Member',
+            'class' => 'X',
+            'location' => 'Jakarta',
+        ])
+            ->assertSessionHasErrors('nis');
+
+        $this->assertDatabaseHas('members', [
+            'id' => $member->id,
+            'nis' => 'NIS-EDIT-1',
+            'name' => 'First Member',
+        ]);
+    }
+
     public function test_member_cannot_be_added_with_a_nis_already_used_by_a_customer(): void
     {
         $admin = $this->createAdmin();

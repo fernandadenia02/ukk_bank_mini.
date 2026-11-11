@@ -44,7 +44,8 @@ class MonthlyReportController extends Controller
 
         $transactions = (clone $query)
             ->with(['customer', 'teller'])
-            ->orderBy('date')
+            ->orderByDesc('date')
+            ->orderByDesc('id')
             ->get();
 
         $reportStatuses = DailyReport::query()

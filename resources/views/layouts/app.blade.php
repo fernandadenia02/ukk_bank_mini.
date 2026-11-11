@@ -788,6 +788,25 @@
 </div>
 
 
+<div class="modal fade" id="uiConfirmModal" tabindex="-1" aria-labelledby="uiConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uiConfirmTitle">Konfirmasi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p id="uiConfirmMessage" class="mb-2"></p>
+                <div id="uiConfirmDetails" class="text-muted"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="uiConfirmAccept">Ya, lanjutkan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 {{-- ========================================= --}}
 {{-- JAVASCRIPT --}}
@@ -796,6 +815,80 @@
 <script>
 
 document.addEventListener('DOMContentLoaded', function () {
+    const confirmModalElement = document.getElementById('uiConfirmModal');
+    const confirmModal = new bootstrap.Modal(confirmModalElement);
+    const confirmTitle = document.getElementById('uiConfirmTitle');
+    const confirmMessage = document.getElementById('uiConfirmMessage');
+    const confirmDetails = document.getElementById('uiConfirmDetails');
+    const confirmAccept = document.getElementById('uiConfirmAccept');
+    let confirmResolver = null;
+
+    window.showUiConfirm = function ({ title, message, details = [], acceptText = 'Ya, lanjutkan' }) {
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = message;
+        confirmDetails.replaceChildren();
+        confirmAccept.textContent = acceptText;
+
+        details.forEach(function (detail) {
+            const line = document.createElement('div');
+            line.textContent = detail;
+            confirmDetails.appendChild(line);
+        });
+
+        confirmModal.show();
+
+        return new Promise(function (resolve) {
+            confirmResolver = resolve;
+        });
+    };
+
+    confirmAccept.addEventListener('click', function () {
+        confirmModal.hide();
+        if (confirmResolver) {
+            confirmResolver(true);
+            confirmResolver = null;
+        }
+    });
+
+    confirmModalElement.addEventListener('hidden.bs.modal', function () {
+        if (confirmResolver) {
+            confirmResolver(false);
+            confirmResolver = null;
+        }
+    });
+
+    document.addEventListener('submit', async function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.dataset.uiConfirm) {
+            return;
+        }
+
+        if (form.dataset.uiConfirmBypass === '1') {
+            delete form.dataset.uiConfirmBypass;
+            return;
+        }
+
+        event.preventDefault();
+        const details = [];
+        if (form.dataset.uiConfirmValue) {
+            const valueInput = form.querySelector(form.dataset.uiConfirmValue);
+            if (valueInput) {
+                details.push(`${form.dataset.uiConfirmValueLabel || 'Nominal'}: ${valueInput.value}`);
+            }
+        }
+
+        const accepted = await window.showUiConfirm({
+            title: form.dataset.uiConfirmTitle || 'Konfirmasi',
+            message: form.dataset.uiConfirm,
+            details,
+            acceptText: form.dataset.uiConfirmAccept || 'Ya, lanjutkan',
+        });
+
+        if (accepted) {
+            form.dataset.uiConfirmBypass = '1';
+            form.requestSubmit(event.submitter);
+        }
+    });
 
     const idleTimeout = 5 * 60 * 1000;
     const activityKey = 'bank-mini-last-activity';

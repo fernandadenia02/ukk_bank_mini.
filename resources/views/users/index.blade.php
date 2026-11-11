@@ -230,7 +230,9 @@
                             action="{{ route('users.status',$user->id) }}"
                             method="POST"
                             class="d-inline"
-                            onsubmit="return confirm('Ubah status user ini?')">
+                            data-ui-confirm-title="Perubahan status user"
+                            data-ui-confirm="Ubah status user ini?"
+                            data-ui-confirm-accept="Ubah status">
 
                             @csrf
                             @method('PATCH')

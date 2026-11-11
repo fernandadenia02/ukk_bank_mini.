@@ -77,4 +77,40 @@ class MonthlyReportStatusTest extends TestCase
             ->assertSeeText('Pending: 1')
             ->assertSeeText('Rejected: 1');
     }
+
+    public function test_monthly_report_lists_newest_transactions_first(): void
+    {
+        $admin = User::create([
+            'officer_name' => 'Admin',
+            'username' => 'admin',
+            'password' => 'password',
+            'role' => 'admin',
+            'status' => 'aktif',
+        ]);
+        $oldCustomerId = DB::table('customers')->insertGetId(['name' => 'Oldest Transaction']);
+        $newCustomerId = DB::table('customers')->insertGetId(['name' => 'Newest Transaction']);
+
+        DB::table('transactions')->insert([
+            [
+                'customer_id' => $oldCustomerId,
+                'transaction_type' => 'setoran',
+                'amount' => 1000,
+                'date' => '2026-10-01 09:00:00',
+            ],
+            [
+                'customer_id' => $newCustomerId,
+                'transaction_type' => 'setoran',
+                'amount' => 2000,
+                'date' => '2026-10-31 16:00:00',
+            ],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('monthly-reports.index', [
+                'month' => 10,
+                'year' => 2026,
+            ]))
+            ->assertOk()
+            ->assertSeeInOrder(['Newest Transaction', 'Oldest Transaction']);
+    }
 }

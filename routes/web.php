@@ -111,6 +111,12 @@ Route::middleware('auth')->group(function () {
             ->name('members.create');
         Route::post('/members', [MemberController::class, 'store'])
             ->name('members.store');
+        Route::get('/members/{id}/edit', [MemberController::class, 'edit'])
+            ->whereNumber('id')
+            ->name('members.edit');
+        Route::put('/members/{id}', [MemberController::class, 'update'])
+            ->whereNumber('id')
+            ->name('members.update');
         Route::get('/members/import/template', [MemberController::class, 'downloadImportTemplate'])
             ->name('members.import.template');
         Route::post('/members/import', [MemberController::class, 'import'])
