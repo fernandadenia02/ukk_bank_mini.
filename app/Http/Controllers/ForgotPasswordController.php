@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\PasswordResetOtp;
 use App\Models\StaffPasswordResetOtp;
 use App\Models\User;
+use App\Rules\StrongPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -222,7 +223,7 @@ class ForgotPasswordController extends Controller
             'identity' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'otp' => ['required', 'digits:6'],
-            'password' => ['required', 'string', 'min:4', 'confirmed'],
+            'password' => ['required', 'string', 'max:255', new StrongPassword, 'confirmed'],
         ]);
 
         $identity = trim($validated['identity']);
@@ -274,7 +275,7 @@ class ForgotPasswordController extends Controller
         $validated = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'otp' => ['required', 'digits:6'],
-            'password' => ['required', 'string', 'min:4', 'confirmed'],
+            'password' => ['required', 'string', 'max:255', new StrongPassword, 'confirmed'],
         ]);
 
         $error = $this->applyPasswordReset(

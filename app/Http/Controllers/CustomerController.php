@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Rules\StrongPassword;
 use App\Models\Customer;
 use App\Services\CustomerAccountCreator;
 use Illuminate\Http\Request;
@@ -95,7 +96,7 @@ class CustomerController extends Controller
             'class'            => 'required|max:20',
             'location'         => 'required',
             'telephone_number' => 'required|max:20',
-            'password'         => 'required|string|min:4',
+            'password'         => ['required', 'string', 'max:255', new StrongPassword],
             'pin'              => 'required|digits:6',
         ]);
 
@@ -176,7 +177,7 @@ class CustomerController extends Controller
             ['Jangan ubah atau menghapus nama kolom pada baris pertama.'],
             ['Nomor rekening dibuat otomatis oleh sistem.'],
             ['Customer baru berstatus nonaktif dengan saldo Rp 0.'],
-            ['Password kosong otomatis diisi 1234.'],
+            ['Password wajib diisi dan harus minimal 12 karakter, dengan huruf kapital, angka, dan simbol khusus.'],
             ['PIN kosong otomatis diisi 123456. PIN wajib 6 angka jika diisi.'],
             ['NIS, name, email, class, location, dan telephone_number wajib diisi.'],
             ['Jika ada data salah atau duplikat, seluruh file dibatalkan dan tidak ada baris yang disimpan.'],
@@ -252,7 +253,6 @@ class CustomerController extends Controller
                     continue;
                 }
 
-                $row['password'] = $row['password'] ?? '1234';
                 $row['pin'] = $row['pin'] ?? '123456';
                 $row['nis'] = trim((string) ($row['nis'] ?? ''));
                 $row['email'] = strtolower(trim((string) ($row['email'] ?? '')));
@@ -264,7 +264,7 @@ class CustomerController extends Controller
                     'class' => ['required', 'string', 'max:20'],
                     'location' => ['required', 'string'],
                     'telephone_number' => ['required', 'string', 'max:20'],
-                    'password' => ['required', 'string', 'min:4', 'max:255'],
+                    'password' => ['required', 'string', 'max:255', new StrongPassword],
                     'pin' => ['required', 'digits:6'],
                 ]);
 

@@ -101,7 +101,7 @@ class CustomerEmailTest extends TestCase
                 'class' => 'XII',
                 'location' => 'Jakarta',
                 'telephone_number' => '081234567890',
-                'password' => 'customer-login-password',
+                'password' => 'SecurePass123!',
                 'pin' => '123456',
             ])
             ->assertSessionHasErrors('email');
@@ -152,7 +152,7 @@ class CustomerEmailTest extends TestCase
                 'class' => 'XII',
                 'location' => 'Jakarta',
                 'telephone_number' => '081234567890',
-                'password' => 'customer-login-password',
+                'password' => 'SecurePass123!',
                 'pin' => '123456',
             ])
             ->assertRedirect(route('customers.index'));
@@ -162,7 +162,7 @@ class CustomerEmailTest extends TestCase
         $this->assertEquals(0, $customer->balance);
         $this->assertSame('nonaktif', $customer->status);
         $this->assertTrue(password_verify(
-            'customer-login-password',
+            'SecurePass123!',
             $customer->password
         ));
         $this->assertFalse(password_verify(
@@ -347,7 +347,7 @@ class CustomerEmailTest extends TestCase
                 'officer_name' => 'New Teller',
                 'username' => 'newteller',
                 'email' => 'newteller@example.test',
-                'password' => 'password',
+                'password' => 'SecurePass123!',
                 'role' => 'teller',
             ])
             ->assertRedirect(route('users.index'));

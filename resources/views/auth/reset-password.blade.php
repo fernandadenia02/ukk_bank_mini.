@@ -29,7 +29,7 @@
 
             <p>
                 Masukkan kembali ID admin/teller atau nomor rekening customer,
-                email terdaftar, kode OTP 6 digit dari email, dan password baru minimal 4 karakter.
+                email terdaftar, kode OTP 6 digit dari email, dan password baru sesuai semua ketentuan keamanan.
             </p>
 
             <form action="{{ route('password.update') }}" method="POST">
@@ -95,11 +95,13 @@
                         id="password"
                         name="password"
                         class="form-control"
-                        minlength="4"
+                        minlength="12"
+                        maxlength="255"
+                        data-strong-password
                         autocomplete="new-password"
                         required
                     >
-                    <small class="text-muted">Minimal 4 karakter.</small>
+                    @include('components.password-requirements')
                 </div>
 
                 <div class="mb-3">
@@ -112,7 +114,8 @@
                         id="password_confirmation"
                         name="password_confirmation"
                         class="form-control"
-                        minlength="4"
+                        minlength="12"
+                        maxlength="255"
                         autocomplete="new-password"
                         required
                     >

@@ -128,14 +128,17 @@
 
                     <input
                         type="password"
+                        id="password"
                         name="password"
                         class="form-control"
-                        placeholder="Minimum 4 characters"
+                        minlength="12"
+                        maxlength="255"
+                        data-strong-password
+                        autocomplete="new-password"
+                        placeholder="Minimum 12 characters"
                         required>
 
-                    <small class="text-muted">
-                        Password minimal 4 karakter.
-                    </small>
+                    @include('components.password-requirements')
 
                 </div>
 

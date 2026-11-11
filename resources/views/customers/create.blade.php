@@ -114,14 +114,16 @@
                     id="password"
                     name="password"
                     class="form-control"
-                    minlength="4"
+                    minlength="12"
+                    maxlength="255"
+                    data-strong-password
                     autocomplete="new-password"
                     required>
 
                 <small class="text-muted">
                     Password ini digunakan untuk login customer dan berbeda dari PIN transaksi.
-                    Minimal 4 karakter.
                 </small>
+                @include('components.password-requirements')
             </div>
 
             <div class="mb-3">

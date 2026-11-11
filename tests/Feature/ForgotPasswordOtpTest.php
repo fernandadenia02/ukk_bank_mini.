@@ -114,60 +114,80 @@ class ForgotPasswordOtpTest extends TestCase
             'identity' => '10000002',
             'email' => 'customer@example.test',
             'otp' => '123456',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ])->assertRedirect(route('login'));
 
         $this->assertTrue(Hash::check(
-            'new-password',
+            'SecurePass123!',
             DB::table('customers')->where('id', $customerId)->value('password')
         ));
     }
 
-    public function test_reset_form_uses_six_digit_otp_and_four_character_password_minimum(): void
+    public function test_reset_form_shows_password_requirements_and_six_digit_otp(): void
     {
         $this->get(route('password.reset.form'))
             ->assertOk()
             ->assertSee('kode OTP 6 digit', false)
             ->assertSee('minlength="6"', false)
-            ->assertSee('minlength="4"', false)
-            ->assertSee('Minimal 4 karakter.');
+            ->assertSee('minlength="12"', false)
+            ->assertSee('Minimal 12 karakter')
+            ->assertSee('Memiliki huruf kapital (A-Z)')
+            ->assertSee('Memiliki angka (0-9)')
+            ->assertSee('Memiliki simbol khusus');
     }
 
-    public function test_four_character_password_can_be_set_with_a_six_digit_otp(): void
+    public function test_password_reset_requires_length_uppercase_number_and_symbol(): void
     {
-        $customerId = $this->createCustomerAccount('10000004');
-        DB::table('password_reset_otps')->insert([
-            'customer_id' => $customerId,
-            'otp_hash' => Hash::make('123456'),
-            'expires_at' => now()->addMinutes(5),
-            'attempts' => 0,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $this->from(route('password.reset.form'))
+            ->post(route('password.update'), [
+            'identity' => '10000004',
+            'email' => 'customer@example.test',
+            'otp' => '123456',
+            'password' => 'short',
+            'password_confirmation' => 'short',
+        ])->assertRedirect(route('password.reset.form'))
+            ->assertSessionHasErrors('password');
 
+        $passwordErrors = session('errors')->getBag('default')->get('password');
+        $this->assertContains('Password minimal harus 12 karakter.', $passwordErrors);
+        $this->assertContains('Password harus mengandung minimal 1 huruf kapital (A-Z).', $passwordErrors);
+        $this->assertContains('Password harus mengandung minimal 1 angka (0-9).', $passwordErrors);
+        $this->assertContains('Password harus mengandung minimal 1 simbol khusus (contoh: !@#$%).', $passwordErrors);
+    }
+
+    public function test_reset_password_rejects_a_password_missing_each_required_character_type(): void
+    {
+        $this->postJson('/api/customer/reset-password', [
+            'email' => 'customer@example.test',
+            'otp' => '123456',
+            'password' => 'OnlylettersXX',
+            'password_confirmation' => 'OnlylettersXX',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password')
+            ->assertJsonPath('errors.password.0', 'Password harus mengandung minimal 1 angka (0-9).')
+            ->assertJsonPath('errors.password.1', 'Password harus mengandung minimal 1 simbol khusus (contoh: !@#$%).');
+
+        $this->postJson('/api/customer/reset-password', [
+            'email' => 'customer@example.test',
+            'otp' => '123456',
+            'password' => 'lowercase123!',
+            'password_confirmation' => 'lowercase123!',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password')
+            ->assertJsonPath('errors.password.0', 'Password harus mengandung minimal 1 huruf kapital (A-Z).');
+    }
+
+    public function test_reset_password_requires_confirmation(): void
+    {
         $this->post(route('password.update'), [
             'identity' => '10000004',
             'email' => 'customer@example.test',
             'otp' => '123456',
-            'password' => 'abcd',
-            'password_confirmation' => 'abcd',
-        ])->assertRedirect(route('login'));
-
-        $this->assertTrue(Hash::check(
-            'abcd',
-            DB::table('customers')->where('id', $customerId)->value('password')
-        ));
-    }
-
-    public function test_reset_password_rejects_password_shorter_than_four_characters(): void
-    {
-        $this->post(route('password.update'), [
-            'identity' => '10000004',
-            'email' => 'customer@example.test',
-            'otp' => '123456',
-            'password' => 'abc',
-            'password_confirmation' => 'abc',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'DifferentPass123!',
         ])
             ->assertSessionHasErrors('password');
     }
@@ -195,12 +215,12 @@ class ForgotPasswordOtpTest extends TestCase
                 'identity' => (string) $userId,
                 'email' => "{$role}@example.test",
                 'otp' => '123456',
-                'password' => 'new-password',
-                'password_confirmation' => 'new-password',
+                'password' => 'SecurePass123!',
+                'password_confirmation' => 'SecurePass123!',
             ])->assertRedirect(route('login'));
 
             $this->assertTrue(Hash::check(
-                'new-password',
+                'SecurePass123!',
                 DB::table('users')->where('id', $userId)->value('password')
             ));
         }
@@ -267,8 +287,8 @@ class ForgotPasswordOtpTest extends TestCase
         $this->postJson('/api/customer/reset-password', [
             'email' => 'customer@example.test',
             'otp' => '123456',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ])
             ->assertOk()
             ->assertExactJson([
@@ -277,7 +297,7 @@ class ForgotPasswordOtpTest extends TestCase
             ]);
 
         $this->assertTrue(Hash::check(
-            'new-password',
+            'SecurePass123!',
             DB::table('customers')->where('id', $customerId)->value('password')
         ));
         $this->assertNotNull(
@@ -302,8 +322,8 @@ class ForgotPasswordOtpTest extends TestCase
         $this->postJson('/api/customer/reset-password', [
             'email' => 'customer@example.test',
             'otp' => '654321',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ])
             ->assertUnprocessable()
             ->assertJsonPath('success', false);

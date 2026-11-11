@@ -281,7 +281,7 @@ class MemberWorkflowTest extends TestCase
         $this->post(route('teller.members.open', $member->id), [
             'email' => 'newcustomer@example.test',
             'telephone_number' => '081234567890',
-            'password' => 'customer-password',
+            'password' => 'SecurePass123!',
             'pin' => '012345',
             'opening_deposit' => '15.000',
         ])
@@ -295,7 +295,7 @@ class MemberWorkflowTest extends TestCase
         $this->assertEquals(15000, $customer->balance);
         $this->assertSame('aktif', $customer->status);
         $this->assertSame('new bank customer', $customer->username);
-        $this->assertTrue(Hash::check('customer-password', $customer->password));
+        $this->assertTrue(Hash::check('SecurePass123!', $customer->password));
         $this->assertTrue(Hash::check('012345', $customer->pin));
         $this->assertDatabaseHas('members', ['id' => $member->id, 'nis' => 'NIS-ACCOUNT']);
         $this->actingAs($admin)
@@ -337,7 +337,7 @@ class MemberWorkflowTest extends TestCase
             ->post(route('teller.members.open', $member->id), [
                 'email' => 'lowdeposit@example.test',
                 'telephone_number' => '081234567890',
-                'password' => 'customer-password',
+                'password' => 'SecurePass123!',
                 'pin' => '012345',
                 'opening_deposit' => 9999,
             ])

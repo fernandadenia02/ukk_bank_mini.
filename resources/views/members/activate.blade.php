@@ -44,8 +44,8 @@
             <div class="mb-3">
                 <label for="password" class="form-label">Password Login</label>
                 <input type="password" id="password" name="password" class="form-control"
-                    minlength="4" autocomplete="new-password" required>
-                <small class="text-muted">Minimal 4 karakter.</small>
+                    minlength="12" maxlength="255" data-strong-password autocomplete="new-password" required>
+                @include('components.password-requirements')
             </div>
 
             <div class="mb-3">

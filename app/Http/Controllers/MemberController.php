@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Rules\StrongPassword;
 use App\Models\Customer;
 use App\Models\Member;
 use App\Models\Transaction;
@@ -360,7 +361,7 @@ class MemberController extends Controller
         $validated = $request->validate([
             'email' => ['required', 'email', 'max:255', 'unique:customers,email', 'unique:users,email'],
             'telephone_number' => ['required', 'string', 'max:20'],
-            'password' => ['required', 'string', 'min:4', 'max:255'],
+            'password' => ['required', 'string', 'max:255', new StrongPassword],
             'pin' => ['required', 'digits:6'],
             'opening_deposit' => ['required', 'numeric', 'min:10000', 'max:9999999999.99'],
         ]);

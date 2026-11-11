@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\StrongPassword;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -50,7 +51,7 @@ class UserController extends Controller
             'officer_name' => 'required|max:100',
             'username'     => 'required|unique:users,username|unique:customers,username|max:50',
             'email'        => 'nullable|required_if:role,admin|required_if:role,teller|email|max:255|unique:users,email',
-            'password'     => 'required|min:4',
+            'password'     => ['required', 'string', 'max:255', new StrongPassword],
             'role'         => 'required|in:admin,teller,supervisor',
         ]);
 
@@ -93,7 +94,8 @@ class UserController extends Controller
                 . '|unique:customers,username',
             'email'        => 'nullable|required_if:role,admin|required_if:role,teller|email|max:255|unique:users,email,' . $id,
             'role'         => 'required|in:admin,teller,supervisor',
-            'status'       => 'required|in:aktif,nonaktif'
+            'status'       => 'required|in:aktif,nonaktif',
+            'password'     => ['nullable', 'string', 'max:255', new StrongPassword],
         ]);
 
         $data = [

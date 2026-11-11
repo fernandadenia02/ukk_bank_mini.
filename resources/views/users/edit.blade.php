@@ -129,10 +129,16 @@
 
                     <input
                         type="password"
+                        id="password"
                         name="password"
                         class="form-control"
+                        minlength="12"
+                        maxlength="255"
+                        data-strong-password
+                        autocomplete="new-password"
                         placeholder="Leave blank if unchanged">
 
+                    @include('components.password-requirements')
                     <small class="text-muted">
 
                         Leave this field empty if you don't want to change the password.
