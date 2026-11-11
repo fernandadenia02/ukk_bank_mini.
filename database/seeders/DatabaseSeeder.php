@@ -86,19 +86,19 @@ class DatabaseSeeder extends Seeder
                 'nis' => 'SEED-ANGGOTA-001',
                 'name' => 'Anggota Contoh 1',
                 'class' => 'X',
-                'location' => 'Jakarta',
+                'location' => 'BANTUL',
             ],
             [
                 'nis' => 'SEED-ANGGOTA-002',
                 'name' => 'Anggota Contoh 2',
                 'class' => 'XI',
-                'location' => 'Bandung',
+                'location' => 'BANTUL',
             ],
             [
                 'nis' => 'SEED-ANGGOTA-003',
                 'name' => 'Anggota Contoh 3',
                 'class' => 'XII',
-                'location' => 'Surabaya',
+                'location' => 'BANTUL',
             ],
         ];
     }
