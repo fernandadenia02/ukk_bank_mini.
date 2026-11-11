@@ -29,6 +29,15 @@ class TransactionController extends Controller
         ->orderBy('date', 'desc')
         ->get();
 
+        $transactions = $transactions->map(function (Transaction $transaction): array {
+            $data = $transaction->toArray();
+            $data['amount'] = (float) $transaction->amount;
+            $data['beginning_balance'] = (float) $transaction->beginning_balance;
+            $data['ending_balance'] = (float) $transaction->ending_balance;
+
+            return $data;
+        });
+
         return response()->json([
             'message' => 'Data transaksi berhasil diambil.',
             'data' => $transactions

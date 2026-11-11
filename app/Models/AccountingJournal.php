@@ -21,6 +21,11 @@ class AccountingJournal extends Model
         'date',
     ];
 
+    protected $casts = [
+        'debit' => 'decimal:2',
+        'credit' => 'decimal:2',
+    ];
+
     public function transaction()
     {
         return $this->belongsTo(Transaction::class);

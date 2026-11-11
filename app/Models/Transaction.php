@@ -25,6 +25,9 @@ class Transaction extends Model
     ];
 
     protected $casts = [
+        'amount' => 'decimal:2',
+        'beginning_balance' => 'decimal:2',
+        'ending_balance' => 'decimal:2',
         'date' => 'datetime',
     ];
 

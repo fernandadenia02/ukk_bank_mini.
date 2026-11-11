@@ -41,7 +41,7 @@ class CustomerController extends Controller
             'data' => [
                 'name' => $customer->name,
                 'account_number' => $customer->account_number,
-                'balance' => $customer->balance,
+                'balance' => (float) $customer->balance,
             ]
         ]);
     }
@@ -76,7 +76,7 @@ class CustomerController extends Controller
                 // Keep the previous aliases for existing API clients.
                 'address' => $customer->location,
                 'phone' => $customer->telephone_number,
-                'balance' => $customer->balance,
+                'balance' => (float) $customer->balance,
             ]
         ]);
     }
@@ -132,7 +132,7 @@ class CustomerController extends Controller
                 'nis' => $customer->nis,
                 'address' => $customer->address,
                 'phone' => $customer->phone,
-                'balance' => $customer->balance,
+                'balance' => (float) $customer->balance,
             ]
         ]);
     }
@@ -157,7 +157,7 @@ class CustomerController extends Controller
             'message' => 'Saldo berhasil diambil.',
             'data' => [
                 'account_number' => $customer->account_number,
-                'balance' => $customer->balance,
+                'balance' => (float) $customer->balance,
             ]
         ]);
     }

@@ -31,6 +31,12 @@ class DailyReport extends Model
 
     protected $casts = [
         'date' => 'date',
+        'beginning_balance' => 'decimal:2',
+        'total_deposit' => 'decimal:2',
+        'total_withdrawals' => 'decimal:2',
+        'ending_balance' => 'decimal:2',
+        'physical_money' => 'decimal:2',
+        'difference' => 'decimal:2',
         'approved_at' => 'datetime',
         'closed_at' => 'datetime',
     ];

@@ -102,7 +102,7 @@ class AuthController extends Controller
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'account_number' => $customer->account_number,
-                'balance' => $customer->balance,
+                'balance' => (float) $customer->balance,
             ],
         ]);
     }
@@ -163,7 +163,7 @@ class AuthController extends Controller
                 'id' => $customer->id,
                 'name' => $customer->name,
                 'account_number' => $customer->account_number,
-                'balance' => $customer->balance,
+                'balance' => (float) $customer->balance,
             ],
         ]);
     }

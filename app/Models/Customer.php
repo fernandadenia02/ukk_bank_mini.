@@ -37,6 +37,7 @@ class Customer extends Authenticatable
 
     protected $casts = [
         'password' => 'hashed',
+        'balance' => 'decimal:2',
     ];
 
     public function transactions()
