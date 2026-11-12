@@ -722,7 +722,7 @@
                 @endif
 
                 {{-- Status kas dan ringkasan penutupan kas harian. --}}
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex flex-wrap justify-content-start align-items-center gap-3">
                     <div>
                         <strong>Status Kas:</strong>
                         @if($dailyReport->closed_at)
