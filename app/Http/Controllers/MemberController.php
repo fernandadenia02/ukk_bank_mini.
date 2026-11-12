@@ -224,11 +224,13 @@ class MemberController extends Controller
 
         if ($forTeller) {
             $membersQuery->whereDoesntHave('customer');
+            $membersQuery->orderByDesc('id');
+        } else {
+            $membersQuery->orderBy('class')
+                ->orderBy('name');
         }
 
-        $members = $membersQuery->orderByDesc('id')
-            ->paginate(10)
-            ->withQueryString();
+        $members = $membersQuery->paginate(10)->withQueryString();
 
         return view('members.index', compact('members', 'keyword', 'forTeller'));
     }

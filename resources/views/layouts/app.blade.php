@@ -581,6 +581,15 @@
 
         </a>
 
+        <a
+            href="{{ route('teller.withdrawal-appointments.index') }}"
+            class="{{ request()->routeIs('teller.withdrawal-appointments.*') ? 'active' : '' }}"
+        >
+
+            Riwayat Janji Penarikan
+
+        </a>
+
     {{-- ========================================= --}}
     {{-- SUPERVISOR --}}
     {{-- ========================================= --}}

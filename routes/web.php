@@ -159,6 +159,8 @@ Route::middleware('auth')->group(function () {
 
     // KHUSUS TELLER
     Route::middleware('role:teller')->group(function () {
+        Route::get('/teller/withdrawal-appointments', [TellerWithdrawalAppointmentController::class, 'index'])
+            ->name('teller.withdrawal-appointments.index');
         Route::post('/teller/withdrawal-appointments/{id}/approve', [TellerWithdrawalAppointmentController::class, 'approve'])
             ->whereNumber('id')
             ->name('teller.withdrawal-appointments.approve');

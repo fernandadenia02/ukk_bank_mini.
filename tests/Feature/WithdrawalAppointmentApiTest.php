@@ -112,7 +112,9 @@ class WithdrawalAppointmentApiTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        $this->post(route('teller.withdrawal-appointments.reject', $rejected->id))
+        $this->post(route('teller.withdrawal-appointments.reject', $rejected->id), [
+            'rejection_reason' => 'Dokumen belum lengkap.',
+        ])
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -125,6 +127,25 @@ class WithdrawalAppointmentApiTest extends TestCase
             'id' => $rejected->id,
             'status' => 'rejected',
             'reviewed_by' => $teller->id,
+            'rejection_reason' => 'Dokumen belum lengkap.',
+        ]);
+    }
+
+    public function test_teller_must_provide_a_reason_to_reject_an_appointment(): void
+    {
+        $teller = $this->createTeller();
+        $appointment = $this->createAppointment($this->createCustomer());
+
+        $this->actingAs($teller)
+            ->post(route('teller.withdrawal-appointments.reject', $appointment->id), [
+                'rejection_reason' => '   ',
+            ])
+            ->assertSessionHasErrors('rejection_reason');
+
+        $this->assertDatabaseHas('withdrawal_appointments', [
+            'id' => $appointment->id,
+            'status' => 'pending',
+            'rejection_reason' => null,
         ]);
     }
 

@@ -374,7 +374,7 @@ class TellerTransactionPinTest extends TestCase
         $this->assertDatabaseCount('transactions', 3);
     }
 
-    public function test_teller_dashboard_keeps_processed_withdrawal_appointments_in_the_history_table(): void
+    public function test_withdrawal_appointment_history_is_available_from_its_own_page_not_the_dashboard(): void
     {
         [$teller, $customer] = $this->createTellerAndCustomer();
         $appointment = WithdrawalAppointment::create([
@@ -387,7 +387,13 @@ class TellerTransactionPinTest extends TestCase
         ]);
 
         $this->actingAs($teller)
+            ->withSession(['role' => 'teller'])
             ->get(route('teller.dashboard'))
+            ->assertOk()
+            ->assertDontSee('Rp 1.500.000')
+            ->assertSee(route('teller.withdrawal-appointments.index'), false);
+
+        $this->get(route('teller.withdrawal-appointments.index'))
             ->assertOk()
             ->assertSee('Riwayat Janji Penarikan')
             ->assertSee($customer->name)
@@ -614,6 +620,10 @@ class TellerTransactionPinTest extends TestCase
             ->get(route('transactions.create'))
             ->assertOk()
             ->assertDontSee('name="customer_pin"', false)
+            ->assertSee('id="customerSearch"', false)
+            ->assertSee('id="searchCustomer"', false)
+            ->assertSee('id="startScanner"', false)
+            ->assertSee('placeholder="Cari nama atau nomor rekening nasabah..."', false)
             ->assertSee('Minta PIN melalui Aplikasi Nasabah')
             ->assertSee(route('transactions.pin-approval.create'), false)
             ->assertSee('pinApprovalId.value = approvalId', false)

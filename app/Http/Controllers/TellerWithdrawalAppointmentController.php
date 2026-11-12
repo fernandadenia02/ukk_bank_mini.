@@ -3,11 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Models\WithdrawalAppointment;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TellerWithdrawalAppointmentController extends Controller
 {
+    public function index()
+    {
+        WithdrawalAppointment::where('status', 'pending')
+            ->whereDate('withdrawal_date', '<', today())
+            ->update(['status' => 'expired']);
+
+        $withdrawalAppointments = WithdrawalAppointment::with([
+            'customer:id,name,account_number',
+            'reviewer:id,officer_name',
+        ])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+            ->orderByDesc('withdrawal_date')
+            ->orderByDesc('created_at')
+            ->paginate(10)
+            ->withQueryString();
+
+        return view('teller.withdrawal-appointments.index', compact('withdrawalAppointments'));
+    }
+
     public function approve(int $id)
     {
         $result = DB::transaction(function () use ($id) {
@@ -42,9 +62,24 @@ class TellerWithdrawalAppointmentController extends Controller
         return back()->with('success', 'Janji pengambilan disetujui.');
     }
 
-    public function reject(int $id)
+    public function reject(Request $request, int $id)
     {
-        $result = DB::transaction(function () use ($id) {
+        $validated = $request->validate([
+            'rejection_reason' => ['required', 'string', 'min:5', 'max:2000'],
+        ], [
+            'rejection_reason.required' => 'Catatan penolakan wajib diisi.',
+            'rejection_reason.min' => 'Catatan penolakan minimal 5 karakter.',
+            'rejection_reason.max' => 'Catatan penolakan maksimal 2000 karakter.',
+        ]);
+        $rejectionReason = trim($validated['rejection_reason']);
+
+        if (mb_strlen($rejectionReason) < 5) {
+            return back()
+                ->withErrors(['rejection_reason' => 'Catatan penolakan minimal 5 karakter.'])
+                ->withInput();
+        }
+
+        $result = DB::transaction(function () use ($id, $rejectionReason) {
             $appointment = WithdrawalAppointment::whereKey($id)
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -57,6 +92,7 @@ class TellerWithdrawalAppointmentController extends Controller
                 'status' => 'rejected',
                 'reviewed_by' => Auth::id(),
                 'reviewed_at' => now(),
+                'rejection_reason' => $rejectionReason,
             ]);
 
             return null;
@@ -66,6 +102,6 @@ class TellerWithdrawalAppointmentController extends Controller
             return back()->with('error', $result);
         }
 
-        return back()->with('success', 'Janji pengambilan ditolak.');
+        return back()->with('success', 'Janji pengambilan ditolak. Catatan penolakan telah disimpan.');
     }
 }

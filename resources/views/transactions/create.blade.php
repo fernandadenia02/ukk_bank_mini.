@@ -181,85 +181,7 @@
     @endif
 
 
-    {{-- ========================= --}}
-    {{-- SCAN QR CUSTOMER --}}
-    {{-- ========================= --}}
-
     <div id="transaction-screen">
-
-    <div id="qr-scanner" class="card shadow-sm mb-4 qr-card">
-
-        <div class="card-header bg-dark text-white py-3">
-
-            <strong>
-                
-                Scan QR Customer
-            </strong>
-
-        </div>
-
-        <div class="card-body">
-
-            <p class="text-muted">
-
-                Scan QR Code rekening customer
-                untuk memilih customer secara otomatis.
-
-            </p>
-
-
-            <div class="d-flex flex-wrap gap-2">
-
-                <button
-                    type="button"
-                    id="startScanner"
-                    class="btn btn-primary">
-
-                    
-                    Scan QR Code
-
-                </button>
-
-
-                <button
-                    type="button"
-                    id="stopScanner"
-                    class="btn btn-danger"
-                    style="display:none;">
-
-                    
-                    Tutup Scanner
-
-                </button>
-
-            </div>
-
-
-            {{-- CAMERA --}}
-
-            <div
-                id="qrReaderWrapper"
-                class="qr-reader-wrapper"
-                style="display:none;">
-
-                <div id="qrReader"></div>
-
-            </div>
-
-
-            {{-- HASIL SCAN --}}
-
-            <div
-                id="scanResult"
-                class="alert alert-info mt-3"
-                style="display:none;">
-
-            </div>
-
-        </div>
-
-    </div>
-
 
     {{-- ========================= --}}
     {{-- FORM TRANSAKSI --}}
@@ -277,9 +199,40 @@
         {{-- CUSTOMER --}}
         {{-- ========================= --}}
 
-        <div class="card shadow-sm mb-4">
+        <div id="qr-scanner" class="card shadow-sm mb-4">
 
             <div class="card-body">
+
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-7">
+                        <label for="customerSearch" class="form-label">Cari nasabah</label>
+                        <input
+                            type="search"
+                            id="customerSearch"
+                            class="form-control form-control-lg"
+                            placeholder="Cari nama atau nomor rekening nasabah...">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" id="searchCustomer" class="btn btn-primary btn-lg w-100">
+                            Cari
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" id="startScanner" class="btn btn-success btn-lg w-100">
+                            Scan QR
+                        </button>
+                        <button type="button" id="stopScanner" class="btn btn-danger btn-lg w-100"
+                            style="display:none;">
+                            Tutup Scanner
+                        </button>
+                    </div>
+                </div>
+                <div id="customerSearchFeedback" class="small text-muted mb-3" role="status" aria-live="polite"></div>
+
+                <div id="qrReaderWrapper" class="qr-reader-wrapper mb-3" style="display:none;">
+                    <div id="qrReader"></div>
+                </div>
+                <div id="scanResult" class="alert alert-info mt-3" style="display:none;"></div>
 
                 <div class="mb-3">
 
@@ -814,6 +767,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const customerSelect =
         document.getElementById('customer_id');
 
+    const customerSearch =
+        document.getElementById('customerSearch');
+
+    const searchCustomer =
+        document.getElementById('searchCustomer');
+
+    const customerSearchFeedback =
+        document.getElementById('customerSearchFeedback');
+
     const pinResetSendCustomerId =
         document.getElementById('pinResetSendCustomerId');
 
@@ -1306,6 +1268,11 @@ document.addEventListener('DOMContentLoaded', function () {
         account =
             account.trim();
 
+        customerSearch.value = '';
+        customerSearchFeedback.textContent = '';
+        Array.from(customerSelect.options).forEach(function (option) {
+            option.hidden = false;
+        });
 
         let found = false;
 
@@ -1351,6 +1318,61 @@ document.addEventListener('DOMContentLoaded', function () {
         return found;
 
     }
+
+    function filterCustomers() {
+        const searchTerm = customerSearch.value.trim().toLocaleLowerCase('id-ID');
+        const matchingOptions = [];
+
+        Array.from(customerSelect.options).forEach(function (option) {
+            if (!option.value) {
+                option.hidden = false;
+                return;
+            }
+
+            const searchableText = [
+                option.getAttribute('data-account'),
+                option.getAttribute('data-name'),
+            ].join(' ').toLocaleLowerCase('id-ID');
+            const matches = searchTerm === '' || searchableText.includes(searchTerm);
+
+            option.hidden = !matches;
+            if (matches && searchTerm !== '') {
+                matchingOptions.push(option);
+            }
+        });
+
+        if (searchTerm === '') {
+            customerSearchFeedback.textContent = '';
+            return;
+        }
+
+        if (matchingOptions.length === 0) {
+            customerSelect.value = '';
+            customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            customerSearchFeedback.textContent = 'Nasabah tidak ditemukan.';
+            return;
+        }
+
+        if (matchingOptions.length === 1) {
+            customerSelect.value = matchingOptions[0].value;
+            customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            customerSearchFeedback.textContent = 'Nasabah ditemukan dan dipilih.';
+            return;
+        }
+
+        customerSelect.value = '';
+        customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        customerSearchFeedback.textContent =
+            matchingOptions.length + ' nasabah ditemukan. Pilih nasabah dari daftar.';
+    }
+
+    searchCustomer.addEventListener('click', filterCustomers);
+    customerSearch.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            filterCustomers();
+        }
+    });
 
 
     // =========================

@@ -547,6 +547,34 @@ class MemberWorkflowTest extends TestCase
             ->assertDontSee('Beta Member');
     }
 
+    public function test_admin_member_table_is_sorted_by_class_then_name(): void
+    {
+        $admin = $this->createAdmin();
+        Member::create([
+            'nis' => 'NIS-X-ZULU',
+            'name' => 'Zulu Student',
+            'class' => 'X',
+            'location' => 'Jakarta',
+        ]);
+        Member::create([
+            'nis' => 'NIS-XI-ALPHA',
+            'name' => 'Alpha Student',
+            'class' => 'XI',
+            'location' => 'Jakarta',
+        ]);
+        Member::create([
+            'nis' => 'NIS-X-ALPHA',
+            'name' => 'Alpha Student',
+            'class' => 'X',
+            'location' => 'Jakarta',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('members.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Alpha Student', 'Zulu Student', 'Alpha Student']);
+    }
+
     public function test_admin_can_promote_students_and_keep_selected_students_in_their_class(): void
     {
         $admin = $this->createAdmin();

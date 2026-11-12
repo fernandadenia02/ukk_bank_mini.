@@ -24,80 +24,6 @@
 
     @include('shared.bank-status', ['bankIsOpen' => $bankIsOpen, 'showControls' => true])
 
-    <div class="card shadow-sm border-warning mb-4">
-        <div class="card-header bg-warning-subtle">
-            <h5 class="mb-0">Riwayat Janji Penarikan di Atas Rp 1.000.000</h5>
-        </div>
-        <div class="card-body">
-            @if($withdrawalAppointments->isEmpty())
-                <p class="text-muted mb-0">Belum ada pengajuan janji penarikan.</p>
-            @else
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nasabah</th>
-                                <th>Tanggal Pengambilan</th>
-                                <th>Nominal</th>
-                                <th>Waktu Pengajuan</th>
-                                <th>Status</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($withdrawalAppointments as $appointment)
-                                <tr>
-                                    <td>
-                                        <strong>{{ $appointment->customer->name }}</strong>
-                                        <div class="small text-muted">{{ $appointment->customer->account_number }}</div>
-                                    </td>
-                                    <td>{{ $appointment->withdrawal_date->format('d-m-Y') }}</td>
-                                    <td>Rp {{ number_format($appointment->amount, 0, ',', '.') }}</td>
-                                    <td>{{ $appointment->created_at->timezone('Asia/Jakarta')->format('d-m-Y H:i') }} WIB</td>
-                                    <td>
-                                        @if($appointment->status === 'pending')
-                                            <span class="badge bg-warning text-dark">Menunggu</span>
-                                        @elseif($appointment->status === 'approved')
-                                            <span class="badge bg-success">Disetujui</span>
-                                            @if($appointment->reviewer)
-                                                <div class="small text-muted">oleh {{ $appointment->reviewer->officer_name }}</div>
-                                            @endif
-                                        @elseif($appointment->status === 'rejected')
-                                            <span class="badge bg-danger">Ditolak</span>
-                                        @elseif($appointment->status === 'expired')
-                                            <span class="badge bg-secondary">Kedaluwarsa</span>
-                                        @else
-                                            <span class="badge bg-secondary">{{ ucfirst($appointment->status) }}</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($appointment->status === 'pending')
-                                            <div class="d-flex gap-2">
-                                                <form action="{{ route('teller.withdrawal-appointments.approve', $appointment->id) }}" method="POST">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-success btn-sm">Setujui</button>
-                                                </form>
-                                                <form action="{{ route('teller.withdrawal-appointments.reject', $appointment->id) }}" method="POST">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm">Tolak</button>
-                                                </form>
-                                            </div>
-                                        @else
-                                            <span class="text-muted">-</span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3">
-                    {{ $withdrawalAppointments->links() }}
-                </div>
-            @endif
-        </div>
-    </div>
-
     {{-- =============================== --}}
     {{-- STATISTIK --}}
     {{-- =============================== --}}
@@ -704,33 +630,56 @@
                 </div>
 
                 <hr>
-                {{-- Form permintaan tambahan modal kas saat kas tidak mencukupi untuk operasional. --}}
-                @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
-                    @if($dailyReport->ending_balance <= 0 && !$cashAdvanceRequests->contains('status', 'pending'))
-                        <form action="{{ route('teller.daily-reports.opening-cash') }}" method="POST"
-                            class="row g-2 align-items-end mb-3">
-                            @csrf
-                            <div class="col-md-5">
-                                <label for="opening_cash" class="form-label mb-1">Ajukan modal kas ke admin</label>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        {{-- Form permintaan tambahan modal kas saat kas tidak mencukupi untuk operasional. --}}
+                        @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
+                            @if($dailyReport->ending_balance <= 0 && !$cashAdvanceRequests->contains('status', 'pending'))
+                                <form action="{{ route('teller.daily-reports.opening-cash') }}" method="POST">
+                                    @csrf
+                                    <label for="opening_cash" class="form-label mb-1">Ajukan modal kas ke admin</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rp</span>
+                                        <input type="text" id="opening_cash" name="amount"
+                                            class="form-control" inputmode="numeric" pattern="[0-9.]*"
+                                            value="{{ old('amount') }}"
+                                            required>
+                                        <button type="submit" class="btn btn-primary">Kirim Permintaan Modal</button>
+                                    </div>
+                                    <div class="form-text">Permintaan akan menambah saldo kas setelah disetujui admin.</div>
+                                </form>
+                            @elseif($cashAdvanceRequests->contains('status', 'pending'))
+                                <div class="alert alert-warning mb-0">
+                                    Permintaan modal sedang menunggu persetujuan admin. Transaksi penarikan dapat dilakukan setelah disetujui dan kas tersedia.
+                                </div>
+                            @endif
+                        @endif
+                    </div>
+                    <div class="col-md-6">
+                        {{-- Form pencatatan uang fisik untuk mengajukan penutupan kas harian. --}}
+                        @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
+                            <form action="{{ route('teller.daily-reports.close') }}" method="POST"
+                                data-ui-confirm-title="Konfirmasi tutup kas"
+                                data-ui-confirm="Ajukan tutup kas harian? Transaksi akan dikunci sampai laporan ditolak atau disetujui admin."
+                                data-ui-confirm-accept="Tutup kas">
+                                @csrf
+                                <label for="physical_money" class="form-label mb-1">
+                                    {{ $dailyReport->status === 'rejected' ? 'Perbaiki uang fisik laporan' : 'Uang fisik saat tutup kas' }}
+                                </label>
                                 <div class="input-group">
                                     <span class="input-group-text">Rp</span>
-                                    <input type="text" id="opening_cash" name="amount"
+                                    <input type="text" id="physical_money" name="physical_money"
                                         class="form-control" inputmode="numeric" pattern="[0-9.]*"
-                                        value="{{ old('amount') }}"
+                                        value="{{ old('physical_money', number_format($dailyReport->ending_balance, 0, ',', '.')) }}"
                                         required>
+                                    <button type="submit" class="btn btn-danger">
+                                        {{ $dailyReport->status === 'rejected' ? 'Ajukan Ulang Tutup Kas' : 'Tutup Kas Harian' }}
+                                    </button>
                                 </div>
-                                <div class="form-text">Permintaan akan menambah saldo kas setelah disetujui admin.</div>
-                            </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary">Kirim Permintaan Modal</button>
-                            </div>
-                        </form>
-                    @elseif($cashAdvanceRequests->contains('status', 'pending'))
-                        <div class="alert alert-warning">
-                            Permintaan modal sedang menunggu persetujuan admin. Transaksi penarikan dapat dilakukan setelah disetujui dan kas tersedia.
-                        </div>
-                    @endif
-                @endif
+                            </form>
+                        @endif
+                    </div>
+                </div>
 
                 {{-- Riwayat permintaan modal kas beserta status persetujuan dan catatan admin. --}}
                 @if($cashAdvanceRequests->isNotEmpty())
@@ -772,7 +721,7 @@
                     </div>
                 @endif
 
-                {{-- Status kas dan formulir pencatatan uang fisik untuk mengajukan penutupan kas harian. --}}
+                {{-- Status kas dan ringkasan penutupan kas harian. --}}
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                     <div>
                         <strong>Status Kas:</strong>
@@ -786,33 +735,6 @@
                             <span class="badge bg-danger text-white">Belum ditutup</span>
                         @endif
                     </div>
-                    @if(!$dailyReport->closed_at && in_array($dailyReport->status, ['pending', 'rejected'], true))
-                        <form action="{{ route('teller.daily-reports.close') }}" method="POST"
-                            class="d-flex flex-wrap align-items-end gap-2"
-                            data-ui-confirm-title="Konfirmasi tutup kas"
-                            data-ui-confirm="Ajukan tutup kas harian? Transaksi akan dikunci sampai laporan ditolak atau disetujui admin."
-                            data-ui-confirm-accept="Tutup kas">
-                            @csrf
-                            <div>
-                                <label for="physical_money" class="form-label mb-1">
-                                    {{ $dailyReport->status === 'rejected' ? 'Perbaiki uang fisik laporan' : 'Uang fisik saat tutup kas' }}
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">Rp</span>
-                                    <input type="text" id="physical_money" name="physical_money"
-                                        class="form-control" inputmode="numeric" pattern="[0-9.]*"
-                                        value="{{ old('physical_money', number_format($dailyReport->ending_balance, 0, ',', '.')) }}"
-                                        required>
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-danger">
-                                {{ $dailyReport->status === 'rejected' ? 'Ajukan Ulang Tutup Kas' : 'Tutup Kas Harian' }}
-                            </button>
-                        </form>
-                    @endif
-                </div>
-
-                <div class="text-end mt-3">
                     <a
                         href="{{ route('teller.daily-reports.show', $dailyReport->id) }}"
                         class="btn btn-outline-primary btn-sm"
