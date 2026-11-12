@@ -601,7 +601,7 @@
                             Status
                         </small>
 
-                        <h5>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
 
                             @if($dailyReport->status == 'pending')
 
@@ -623,7 +623,13 @@
 
                             @endif
 
-                        </h5>
+                            <a
+                                href="{{ route('teller.daily-reports.show', $dailyReport->id) }}"
+                                class="btn btn-outline-primary btn-sm"
+                            >
+                                Lihat detail laporan
+                            </a>
+                        </div>
 
                     </div>
 
@@ -735,12 +741,6 @@
                             <span class="badge bg-danger text-white">Belum ditutup</span>
                         @endif
                     </div>
-                    <a
-                        href="{{ route('teller.daily-reports.show', $dailyReport->id) }}"
-                        class="btn btn-outline-primary btn-sm"
-                    >
-                        Lihat detail laporan
-                    </a>
                 </div>
 
             </div>
